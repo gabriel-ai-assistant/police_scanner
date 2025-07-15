@@ -5,6 +5,9 @@ import yaml
 import subprocess
 import whisper
 import logging
+import re
+import datetime
+import pytz  # pip install pytz
 
 # === establish absolute paths ===
 SCRIPT_DIR     = os.path.dirname(os.path.abspath(__file__))
@@ -58,8 +61,23 @@ if len(sys.argv) != 2:
     sys.exit(1)
 
 audio_path = sys.argv[1]
-call_id    = os.path.splitext(os.path.basename(audio_path))[0]
-transcript_path = os.path.join(TRANSCRIPT_DIR, f"{call_id}.txt")
+base = os.path.splitext(os.path.basename(audio_path))[0]
+
+# --- Date-parsing logic for filename ---
+parts = base.split('-')
+transcript_filename = f"{base}.txt"  # fallback
+
+# Look for the epoch segment (must be a 10-digit int, third in filename)
+if len(parts) >= 4 and re.match(r'^\d{10}$', parts[2]):
+    epoch = int(parts[2])
+    # Convert to America/Chicago (Central Time, handles DST)
+    dt = datetime.datetime.fromtimestamp(epoch, tz=pytz.UTC).astimezone(pytz.timezone("America/Chicago"))
+    date_str = dt.strftime("%Y_%m_%d_%H_%M_%S")
+    # Suffix: everything except the epoch, dashed (ID1-ID2-ID4 etc)
+    suffix = '-'.join(parts[:2] + parts[3:])
+    transcript_filename = f"{date_str}-{suffix}.txt"
+
+transcript_path = os.path.join(TRANSCRIPT_DIR, transcript_filename)
 
 logging.info(f"Starting transcription of {audio_path}")
 
