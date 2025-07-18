@@ -1,83 +1,170 @@
 Sweetwater Ln
 Sweetwater Lane
 Sweetwater
+
 Cypress Lake Ln
 Cypress Lake Lane
 Cypress Lake
+
 Mountain Creek Ln
 Mountain Creek Lane
 Mountain Creek
+
 Thackery Ln
 Thackery Lane
 Thackery
-Fairchild Dr
-Fairchild Drive
-Fairchild
+
 Stillhouse Hollow Dr
 Stillhouse Hollow Drive
 Stillhouse Hollow
-Oak Creek Dr
-Oak Creek Drive
-Oak Creek
+
 Cedar Springs Dr
 Cedar Springs Drive
 Cedar Springs
+
 Monticello Dr
 Monticello Drive
 Monticello
+
 Three Rivers Dr
 Three Rivers Drive
 3 Rivers Dr
 3 Rivers Drive
 Three Rivers
+
 Twin Oaks Dr
 Twin Oaks Drive
 Twin Oaks
+
 Del Carmen Dr
 Del Carmen Drive
 Del Carmen
+
 La Cima Blvd
 La Cima Boulevard
 La Cima
+
 Cedar Lake Dr
 Cedar Lake Drive
 Cedar Lake
+
 Millers Creek Dr
 Millers Creek Drive
 Millers Creek
+
 Amistad Dr
 Amistad Drive
 Amistad
+
 Buffalo Springs Dr
 Buffalo Springs Drive
 Buffalo Springs
+
 White River Dr
 White River Drive
 White River
-Lakewood Trl
-Lakewood Trail
-Lakewood
-Twin Buttes Dr
-Twin Buttes Drive
-Twin Buttes
-Palo Duro Dr
-Palo Duro Drive
-Palo Duro
+
+Hidden Lake Dr
+Hidden Lake Drive
+Hidden Lake
+
+McFarlin Dr
+McFarlin Drive
+McFarlin
+
+Amherst Dr
+Amherst Drive
+Amherst
+
+Travis Ln
+Travis Lane
+Travis
+
+Falcon Dr
+Falcon Drive
+Falcon
+
+Bonham Dr
+Bonham Drive
+Bonham
+
+Lavaca Ln
+Lavaca Lane
+Lavaca
+
+Arbol Way
+Arbol
+
+Lewis Canyon Dr
+Lewis Canyon Drive
+Lewis Canyon
+
+Nocona Dr
+Nocona Drive
+Nocona
+
 Salada Dr
 Salada Drive
 Salada
+
+Palo Duro Dr
+Palo Duro Drive
+Palo Duro
+
+Cold Water Dr
+Cold Water Drive
+Cold Water
+
+Tevana Dr
+Tevana Drive
+Tevana
+
+Martin Creek Dr
+Martin Creek Drive
+Martin Creek
+
+Pueblo Viejo Dr
+Pueblo Viejo Drive
+Pueblo Viejo
+
+Twin Buttes Dr
+Twin Buttes Drive
+Twin Buttes
+
+Lost Creek Dr
+Lost Creek Drive
+Lost Creek
+
+Livingston Dr
+Livingston Drive
+Livingston
+
+Calaveras Ct
+Calaveras Court
+Calaveras
+
+Raven Dr
+Raven Drive
+Raven
+
 Pecan Grove Park
 Pecan Grove
+
 Folsom Park
 Folsom
+
 R. Steve Folsom Elementary School
 Steve Folsom Elementary School
 Folsom Elementary School
 Folsom Elementary
 Folsom School
+
+Infinity Arts by SS
+Orion‑Prosper Apartments
+
 MVC
 Officer Down
-10-33
+10‑33
 Officer Needs Assistance
 Shots Fired
 Active Shooter
@@ -87,7 +174,7 @@ Box Alarm
 Active Fire
 Fire Alarm
 Hazmat
-Haz-Mat
+Haz‑Mat
 Hazardous Materials
 Bomb Threat
 Explosive Device
@@ -113,4 +200,3 @@ Search and Rescue
 SAR
 Signal 30
 Man Down
-
