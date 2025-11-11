@@ -18,6 +18,25 @@ export const api = axios.create({
   withCredentials: false
 });
 
+const listKeys = ['results', 'data', 'items', 'hits', 'records', 'entries'];
+
+export function normalizeListResponse<T>(value: unknown): T[] | null {
+  if (Array.isArray(value)) {
+    return value as T[];
+  }
+
+  if (value && typeof value === 'object') {
+    for (const key of listKeys) {
+      const nested = (value as Record<string, unknown>)[key];
+      if (Array.isArray(nested)) {
+        return nested as T[];
+      }
+    }
+  }
+
+  return null;
+}
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {

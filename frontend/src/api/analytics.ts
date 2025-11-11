@@ -1,3 +1,4 @@
+import api, { normalizeListResponse } from './client';
 import api from './client';
 import { mockCalls, mockFeeds, mockKeywordHits, mockTranscripts } from './mockData';
 import type { KeywordSummary } from './mockData';
@@ -37,6 +38,14 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
 export async function getKeywordHits(): Promise<KeywordSummary[]> {
   try {
     const response = await api.get<KeywordSummary[]>('/analytics/keyword-hits');
+    const keywordHits = normalizeListResponse<KeywordSummary>(response.data);
+    if (keywordHits !== null) {
+      return keywordHits;
+    }
+  } catch (error) {
+    console.warn('Using mock keyword hits due to API error', error);
+  }
+  return mockKeywordHits;
     return response.data;
   } catch (error) {
     console.warn('Using mock keyword hits due to API error', error);
