@@ -1,6 +1,6 @@
 import logging
 from apscheduler.schedulers.blocking import BlockingScheduler
-from jobs.get_cache_common_data import refresh_common  # updated import
+from app_scheduler.get_cache_common_data import refresh_common  # updated import
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [%(levelname)s] %(message)s")
