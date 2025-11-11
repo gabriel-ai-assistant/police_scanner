@@ -82,20 +82,20 @@ services:
 # FRONTEND SERVICE
 # ===========================================================
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: scanner-frontend
-    ports:
-      - "3000:3000"
-    depends_on:
-      - app_scheduler
-      - app_ingest
-      - app_transcription
-    environment:
-      - VITE_API_URL=http://localhost:8000
-    restart: unless-stopped
+#  frontend:
+#    build:
+#      context: ./frontend
+#      dockerfile: Dockerfile
+#    container_name: scanner-frontend
+#    ports:
+#      - "3000:3000"
+#    depends_on:
+#      - app_scheduler
+#      - app_ingest
+#      - app_transcription
+#    environment:
+#      - VITE_API_URL=http://localhost:8000
+#    restart: unless-stopped
 
 
 

@@ -1,63 +1,64 @@
-import { Fragment, useMemo } from 'react';
-
-import type { Transcript } from '../types/transcript';
+import { useMemo } from 'react';
 import { Badge } from './ui/badge';
 
-interface TranscriptViewerProps {
+type Segment = {
+  start?: number;
+  end?: number;
+  text?: string;
+  keywords?: string[];
+};
+
+type Transcript = {
+  id: number | string;
+  segments?: Segment[];
+};
+
+function formatTime(s?: number) {
+  if (typeof s !== 'number' || Number.isNaN(s)) return '0:00';
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60).toString().padStart(2, '0');
+  return `${m}:${sec}`;
+}
+
+export default function TranscriptViewer({
+  transcript,
+  highlight
+}: {
   transcript: Transcript;
   highlight?: string;
-}
-
-function formatTime(seconds: number) {
-  const minutes = Math.floor(seconds / 60)
-    .toString()
-    .padStart(2, '0');
-  const secs = Math.floor(seconds % 60)
-    .toString()
-    .padStart(2, '0');
-  return `${minutes}:${secs}`;
-}
-
-function TranscriptViewer({ transcript, highlight }: TranscriptViewerProps) {
-  const normalizedHighlight = highlight?.toLowerCase();
-
-  const segments = useMemo(() => (Array.isArray(transcript.segments) ? transcript.segments : []), [transcript.segments]);
-  const segments = useMemo(() => transcript.segments, [transcript.segments]);
+}) {
+  const segments = useMemo<Segment[]>(
+    () => (Array.isArray(transcript.segments) ? transcript.segments : []),
+    [transcript.segments]
+  );
 
   return (
-    <div className="space-y-4">
-      {transcript.summary ? <p className="text-sm text-muted-foreground">{transcript.summary}</p> : null}
-      {segments.map((segment) => {
-        const text = normalizedHighlight
-          ? segment.text.split(new RegExp(`(${normalizedHighlight})`, 'ig')).map((part, index) => (
-              <Fragment key={`${segment.id}-${index}`}>
-                {part.toLowerCase() === normalizedHighlight ? (
-                  <mark className="rounded bg-yellow-200 px-1 text-foreground dark:bg-yellow-600/50">{part}</mark>
-                ) : (
-                  part
-                )}
-              </Fragment>
-            ))
-          : segment.text;
-
-        return (
-          <div key={segment.id} className="rounded-lg border border-border bg-card/60 p-4">
-            <div className="mb-1 flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-              <Badge variant="secondary">{formatTime(segment.start)}</Badge>
-              <span>{formatTime(segment.end)}</span>
-              {(segment.keywords ?? []).map((keyword) => (
-              {segment.keywords?.map((keyword) => (
-                <Badge key={keyword} variant="outline" className="capitalize">
-                  {keyword}
-                </Badge>
-              ))}
-            </div>
-            <p className="text-sm leading-relaxed">{text}</p>
+    <div className="space-y-3">
+      {segments.map((segment, idx) => (
+        <div
+          key={idx}
+          className="rounded-md border border-border p-3 text-sm bg-card"
+        >
+          <div className="mb-2 flex items-center gap-3 text-muted-foreground">
+            <span>{formatTime(segment.start)}</span>
+            <span>→</span>
+            <span>{formatTime(segment.end)}</span>
+            {(segment.keywords ?? []).map((keyword) => (
+              <Badge key={keyword} variant="outline" className="capitalize">
+                {keyword}
+              </Badge>
+            ))}
           </div>
-        );
-      })}
+          <div className="leading-relaxed">
+            {segment.text ?? ''}
+          </div>
+        </div>
+      ))}
+      {segments.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+          No segments available.
+        </div>
+      )}
     </div>
   );
 }
-
-export default TranscriptViewer;

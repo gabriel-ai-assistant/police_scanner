@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 
 import { searchTranscripts } from '../api/transcripts';
@@ -12,7 +11,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 
 function Search() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const queryClient = useQueryClient();
   const query = searchParams.get('q') ?? '';
 
   const transcriptsQuery = useQuery({
@@ -20,26 +18,18 @@ function Search() {
     queryFn: () => searchTranscripts(query),
     enabled: query.length > 0,
     staleTime: 60 * 1000
-    staleTime: 60 * 1000,
   });
 
   useEffect(() => {
     if (!query) {
-      transcriptsQuery.remove();
+      // no-op in React Query v4; if you previously used .remove(), just skip
     }
-  }, [query, transcriptsQuery]);
-      // ✅ React Query v5 replacement for remove()
-      queryClient.removeQueries({ queryKey: ['transcripts'] });
-    }
-  }, [query, queryClient]);
+  }, [query]);
 
   const handleSearch = (value: string) => {
     const params = new URLSearchParams(searchParams);
-    if (value) {
-      params.set('q', value);
-    } else {
-      params.delete('q');
-    }
+    if (value) params.set('q', value);
+    else params.delete('q');
     setSearchParams(params);
   };
 
