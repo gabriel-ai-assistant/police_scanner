@@ -54,6 +54,11 @@ services:
   # =========================================================
   # APPLICATIONS
   # =========================================================
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+
   app_scheduler:
     build: ./app_scheduler
     env_file: [.env]
