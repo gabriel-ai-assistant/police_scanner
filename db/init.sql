@@ -44,7 +44,7 @@ CREATE INDEX IF NOT EXISTS bcfy_states_state_code_idx ON bcfy_states(state_code)
 
 -- Counties (list + detail/snapshot)
 CREATE TABLE IF NOT EXISTS bcfy_counties (
-    ctid           INTEGER PRIMARY KEY,
+    cntid          INTEGER PRIMARY KEY,
     stid           INTEGER NOT NULL REFERENCES bcfy_states(stid) ON DELETE CASCADE,
     coid           INTEGER NOT NULL REFERENCES bcfy_countries(coid) ON DELETE CASCADE,
     county_name    TEXT NOT NULL,
@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS bcfy_feeds (
     name           TEXT NOT NULL,
     description    TEXT,
     stid           INTEGER REFERENCES bcfy_states(stid)    ON DELETE SET NULL,
-    ctid           INTEGER REFERENCES bcfy_counties(ctid)  ON DELETE SET NULL,
+    cntid           INTEGER REFERENCES bcfy_counties(cntid)  ON DELETE SET NULL,
     coid           INTEGER REFERENCES bcfy_countries(coid) ON DELETE SET NULL,
     is_active      BOOLEAN DEFAULT TRUE,
     source_type    TEXT,          -- e.g., 'calls', 'conventional'
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS bcfy_feeds (
     raw_json       JSONB
 );
 CREATE INDEX IF NOT EXISTS bcfy_feeds_stid_idx ON bcfy_feeds(stid);
-CREATE INDEX IF NOT EXISTS bcfy_feeds_ctid_idx ON bcfy_feeds(ctid);
+CREATE INDEX IF NOT EXISTS bcfy_feeds_cntid_idx ON bcfy_feeds(cntid);
 CREATE INDEX IF NOT EXISTS bcfy_feeds_coid_idx ON bcfy_feeds(coid);
 CREATE INDEX IF NOT EXISTS bcfy_feeds_name_idx ON bcfy_feeds(name);
 
@@ -112,14 +112,14 @@ CREATE TABLE IF NOT EXISTS bcfy_talkgroups (
     service_type   TEXT,                                     -- Law, Fire, EMS, etc.
     tag_id         INTEGER REFERENCES bcfy_tags(tag_id) ON DELETE SET NULL,
     stid           INTEGER REFERENCES bcfy_states(stid)    ON DELETE SET NULL,
-    ctid           INTEGER REFERENCES bcfy_counties(ctid)  ON DELETE SET NULL,
+    cntid           INTEGER REFERENCES bcfy_counties(cntid)  ON DELETE SET NULL,
     coid           INTEGER REFERENCES bcfy_countries(coid) ON DELETE SET NULL,
     is_active      BOOLEAN DEFAULT TRUE,
     fetched_at     TIMESTAMPTZ DEFAULT NOW(),
     raw_json       JSONB
 );
 CREATE INDEX IF NOT EXISTS bcfy_talkgroups_stid_idx    ON bcfy_talkgroups(stid);
-CREATE INDEX IF NOT EXISTS bcfy_talkgroups_ctid_idx    ON bcfy_talkgroups(ctid);
+CREATE INDEX IF NOT EXISTS bcfy_talkgroups_cntid_idx    ON bcfy_talkgroups(cntid);
 CREATE INDEX IF NOT EXISTS bcfy_talkgroups_coid_idx    ON bcfy_talkgroups(coid);
 CREATE INDEX IF NOT EXISTS bcfy_talkgroups_service_idx ON bcfy_talkgroups(service_type);
 CREATE INDEX IF NOT EXISTS bcfy_talkgroups_tag_idx     ON bcfy_talkgroups(tag_id);
