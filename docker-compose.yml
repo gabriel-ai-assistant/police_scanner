@@ -54,11 +54,6 @@ services:
   # =========================================================
   # APPLICATIONS
   # =========================================================
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:3000"
-
   app_scheduler:
     build: ./app_scheduler
     env_file: [.env]
@@ -82,6 +77,27 @@ services:
     command: ["celery", "-A", "worker", "worker", "--loglevel=INFO"]
     volumes:
       - ./shared_bcfy:/app/shared_bcfy:ro
+
+# ===========================================================
+# FRONTEND SERVICE
+# ===========================================================
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: scanner-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - app_scheduler
+      - app_ingest
+      - app_transcription
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    restart: unless-stopped
+
+
 
 # ===========================================================
 # VOLUMES
