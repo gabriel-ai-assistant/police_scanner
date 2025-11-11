@@ -22,6 +22,7 @@ function TranscriptViewer({ transcript, highlight }: TranscriptViewerProps) {
   const normalizedHighlight = highlight?.toLowerCase();
 
   const segments = useMemo(() => (Array.isArray(transcript.segments) ? transcript.segments : []), [transcript.segments]);
+  const segments = useMemo(() => transcript.segments, [transcript.segments]);
 
   return (
     <div className="space-y-4">
@@ -45,6 +46,7 @@ function TranscriptViewer({ transcript, highlight }: TranscriptViewerProps) {
               <Badge variant="secondary">{formatTime(segment.start)}</Badge>
               <span>{formatTime(segment.end)}</span>
               {(segment.keywords ?? []).map((keyword) => (
+              {segment.keywords?.map((keyword) => (
                 <Badge key={keyword} variant="outline" className="capitalize">
                   {keyword}
                 </Badge>

@@ -17,3 +17,8 @@ download_calls.lock
 config.yaml
 
 # Anything else you don’t want in Git
+**/__pycache__/
+**/.venv/
+.DS_Store
+.env
+conf/.env

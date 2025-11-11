@@ -1,5 +1,6 @@
 import type { Transcript } from '../types/transcript';
 import api, { normalizeListResponse } from './client';
+import api from './client';
 import { mockTranscripts } from './mockData';
 
 export async function getTranscript(id: string): Promise<Transcript | undefined> {
@@ -19,6 +20,12 @@ export async function getTranscript(id: string): Promise<Transcript | undefined>
     console.warn('Using mock transcript due to API error', error);
   }
   return mockTranscripts.find((transcript) => transcript.id === id);
+    const response = await api.get<Transcript>(`/transcripts/${id}`);
+    return response.data;
+  } catch (error) {
+    console.warn('Using mock transcript due to API error', error);
+    return mockTranscripts.find((transcript) => transcript.id === id);
+  }
 }
 
 export async function searchTranscripts(query: string): Promise<Transcript[]> {
@@ -37,6 +44,8 @@ export async function searchTranscripts(query: string): Promise<Transcript[]> {
       }
     }
     console.warn('Unexpected transcript search payload, using mock data', response.data);
+    const response = await api.get<Transcript[]>('/search', { params: { q: query } });
+    return response.data;
   } catch (error) {
     console.warn('Using mock transcripts due to API error', error);
     const term = query.toLowerCase();

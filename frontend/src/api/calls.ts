@@ -1,5 +1,6 @@
 import type { Call } from '../types/call';
 import api, { normalizeListResponse } from './client';
+import api from './client';
 import { mockCalls } from './mockData';
 
 export async function getCalls(params?: { feedId?: string }): Promise<Call[]> {
@@ -10,6 +11,7 @@ export async function getCalls(params?: { feedId?: string }): Promise<Call[]> {
       return calls;
     }
     console.warn('Unexpected calls payload, using mock data', response.data);
+    return response.data;
   } catch (error) {
     console.warn('Using mock calls due to API error', error);
     if (params?.feedId) {
@@ -17,6 +19,8 @@ export async function getCalls(params?: { feedId?: string }): Promise<Call[]> {
     }
   }
   return mockCalls;
+    return mockCalls;
+  }
 }
 
 export async function getCall(id: string): Promise<Call | undefined> {
@@ -36,4 +40,10 @@ export async function getCall(id: string): Promise<Call | undefined> {
     console.warn('Using mock call due to API error', error);
   }
   return mockCalls.find((call) => call.id === id);
+    const response = await api.get<Call>(`/calls/${id}`);
+    return response.data;
+  } catch (error) {
+    console.warn('Using mock call due to API error', error);
+    return mockCalls.find((call) => call.id === id);
+  }
 }

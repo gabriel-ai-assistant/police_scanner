@@ -1,0 +1,5 @@
+requests==2.32.3
+boto3==1.35.57
+redis==5.0.8
+psycopg2-binary==2.9.10
+python-dotenv==1.0.1

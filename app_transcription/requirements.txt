@@ -1,0 +1,8 @@
+celery==5.4.0
+psycopg2-binary==2.9.10
+boto3==1.35.57
+python-dotenv==1.0.1
+whisper==1.1.10
+ffmpeg-python==0.2.0
+redis==5.0.8
+meilisearch==0.31.5
