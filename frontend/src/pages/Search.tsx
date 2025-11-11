@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 
@@ -18,11 +19,15 @@ function Search() {
     queryKey: ['transcripts', { query }],
     queryFn: () => searchTranscripts(query),
     enabled: query.length > 0,
+    staleTime: 60 * 1000
     staleTime: 60 * 1000,
   });
 
   useEffect(() => {
     if (!query) {
+      transcriptsQuery.remove();
+    }
+  }, [query, transcriptsQuery]);
       // ✅ React Query v5 replacement for remove()
       queryClient.removeQueries({ queryKey: ['transcripts'] });
     }

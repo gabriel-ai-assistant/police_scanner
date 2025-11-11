@@ -21,6 +21,7 @@ function formatTime(seconds: number) {
 function TranscriptViewer({ transcript, highlight }: TranscriptViewerProps) {
   const normalizedHighlight = highlight?.toLowerCase();
 
+  const segments = useMemo(() => (Array.isArray(transcript.segments) ? transcript.segments : []), [transcript.segments]);
   const segments = useMemo(() => transcript.segments, [transcript.segments]);
 
   return (
@@ -44,6 +45,7 @@ function TranscriptViewer({ transcript, highlight }: TranscriptViewerProps) {
             <div className="mb-1 flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
               <Badge variant="secondary">{formatTime(segment.start)}</Badge>
               <span>{formatTime(segment.end)}</span>
+              {(segment.keywords ?? []).map((keyword) => (
               {segment.keywords?.map((keyword) => (
                 <Badge key={keyword} variant="outline" className="capitalize">
                   {keyword}
