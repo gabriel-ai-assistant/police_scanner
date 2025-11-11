@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: scanner-postgres
+    env_file: [./conf/.env]
+    environment:
+      POSTGRES_USER: ${PGUSER}
+      POSTGRES_PASSWORD: ${PGPASSWORD}
+      POSTGRES_DB: ${PGDATABASE}
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+
+  adminer:
+    image: adminer:4
+    depends_on: [postgres]
+    ports: ["8081:8080"]
+
+  redis:
+    image: redis:7
+    ports: ["6379:6379"]
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    env_file: [./conf/.env]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports: ["9000:9000","9001:9001"]
+    volumes:
+      - minio:/data
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.11
+    env_file: [./conf/.env]
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+    ports: ["7700:7700"]
+
+  app_transcription:
+    build: ./app_transcription
+    env_file: [./conf/.env]
+    depends_on: [postgres, redis, minio]
+    command: ["celery","-A","worker","worker","--loglevel=INFO"]
+
+  app_ingest:
+    build: ./app_ingest
+    env_file: [./conf/.env]
+    depends_on: [redis, minio]
+    command: ["python","collector.py"]
+
+volumes:
+  pgdata:
+  minio:
