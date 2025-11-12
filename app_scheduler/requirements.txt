@@ -1,5 +1,15 @@
+# Core network + DB dependencies
 requests==2.32.3
 psycopg2-binary==2.9.10
 python-dotenv==1.0.1
+aiohttp==3.10.2
+asyncpg==0.30.0
+
+# Scheduling + background jobs
 apscheduler==3.10.4
+
+# AWS SDK
 boto3==1.35.57
+
+# JWT handling
+PyJWT==2.9.0
