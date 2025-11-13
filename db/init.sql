@@ -1,19 +1,18 @@
 -- ============================================================
--- Police Scanner - Database Initialization (FINAL)
+-- Police Scanner - Full Schema (Active Tables Only, Cleaned)
 -- ============================================================
--- Safe re-run: drop in dependency order (optional)
--- DROP TABLE IF EXISTS processing_state, keyword_hits, ratings, call_streets, streets_norm,
---   detected_terms, transcripts, recordings, bcfy_calls_raw,
---   bcfy_feed_tags, bcfy_talkgroups, bcfy_feeds,
---   bcfy_tags, bcfy_counties, bcfy_states, bcfy_countries CASCADE;
+
+-- Optional reset
+-- DROP SCHEMA public CASCADE;
+-- CREATE SCHEMA public;
 
 -- ============================================================
--- 0. Extensions (optional)
+-- 0. EXTENSIONS
 -- ============================================================
 -- CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- ============================================================
--- 1) COMMON CACHE (Broadcastify static data)
+-- 1) BROADCASTIFY COMMON CACHE
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS bcfy_countries (
@@ -24,22 +23,22 @@ CREATE TABLE IF NOT EXISTS bcfy_countries (
     is_active     BOOLEAN DEFAULT TRUE,
     sync          BOOLEAN DEFAULT FALSE,
     notes         TEXT,
-    fetched_at    TIMESTAMPTZ DEFAULT NOW(),
+    fetched_at    TIMESTAMPTZ DEFAULT now(),
     raw_json      JSONB
 );
 CREATE INDEX IF NOT EXISTS bcfy_countries_country_code_idx ON bcfy_countries(country_code);
 
 CREATE TABLE IF NOT EXISTS bcfy_states (
-    stid         INTEGER PRIMARY KEY,
-    coid         INTEGER NOT NULL REFERENCES bcfy_countries(coid) ON DELETE CASCADE,
-    state_name   TEXT NOT NULL,
-    state_code   TEXT NOT NULL,
-    is_active    BOOLEAN DEFAULT TRUE,
-    sync         BOOLEAN DEFAULT FALSE,
-    fetched_at   TIMESTAMPTZ DEFAULT NOW(),
-    raw_json     JSONB
+    stid          INTEGER PRIMARY KEY,
+    coid          INTEGER NOT NULL REFERENCES bcfy_countries(coid) ON DELETE CASCADE,
+    state_name    TEXT NOT NULL,
+    state_code    TEXT NOT NULL,
+    is_active     BOOLEAN DEFAULT TRUE,
+    sync          BOOLEAN DEFAULT FALSE,
+    fetched_at    TIMESTAMPTZ DEFAULT now(),
+    raw_json      JSONB
 );
-CREATE INDEX IF NOT EXISTS bcfy_states_coid_idx ON bcfy_states(coid);
+CREATE INDEX IF NOT EXISTS bcfy_states_coid_idx       ON bcfy_states(coid);
 CREATE INDEX IF NOT EXISTS bcfy_states_state_code_idx ON bcfy_states(state_code);
 
 CREATE TABLE IF NOT EXISTS bcfy_counties (
@@ -60,13 +59,18 @@ CREATE TABLE IF NOT EXISTS bcfy_counties (
     country_code   TEXT,
     is_active      BOOLEAN DEFAULT TRUE,
     sync           BOOLEAN DEFAULT FALSE,
-    fetched_at     TIMESTAMPTZ DEFAULT NOW(),
-    raw_json       JSONB
+    fetched_at     TIMESTAMPTZ DEFAULT now(),
+    raw_json       JSONB,
+    CONSTRAINT bcfy_counties_pkey PRIMARY KEY (cntid)
 );
 CREATE INDEX IF NOT EXISTS bcfy_counties_stid_idx ON bcfy_counties(stid);
 CREATE INDEX IF NOT EXISTS bcfy_counties_coid_idx ON bcfy_counties(coid);
 CREATE INDEX IF NOT EXISTS bcfy_counties_fips_idx ON bcfy_counties(fips);
 CREATE INDEX IF NOT EXISTS bcfy_counties_name_idx ON bcfy_counties(county_name);
+
+-- ============================================================
+-- 2) PLAYLISTS AND POLL LOG
+-- ============================================================
 
 CREATE TABLE IF NOT EXISTS bcfy_playlists (
     uuid           UUID PRIMARY KEY,
@@ -81,93 +85,32 @@ CREATE TABLE IF NOT EXISTS bcfy_playlists (
     num_groups     INTEGER,
     ctids          JSONB,
     groups_json    JSONB,
-    fetched_at     TIMESTAMPTZ DEFAULT NOW(),
+    fetched_at     TIMESTAMPTZ DEFAULT now(),
     raw_json       JSONB
 );
-CREATE INDEX IF NOT EXISTS bcfy_playlists_listeners_idx ON bcfy_playlists(listeners);
-CREATE INDEX IF NOT EXISTS bcfy_playlists_last_seen_idx ON bcfy_playlists(last_seen);
+CREATE INDEX IF NOT EXISTS bcfy_playlists_last_seen_idx  ON bcfy_playlists(last_seen);
+CREATE INDEX IF NOT EXISTS bcfy_playlists_listeners_idx  ON bcfy_playlists(listeners);
 
 CREATE TABLE IF NOT EXISTS bcfy_playlist_poll_log (
     uuid            UUID NOT NULL,
-    poll_started_at timestamptz NOT NULL DEFAULT NOW(),
-    poll_ended_at   timestamptz,
+    poll_started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    poll_ended_at   TIMESTAMPTZ,
     success         BOOLEAN DEFAULT FALSE,
     notes           TEXT,
-    PRIMARY KEY (uuid, poll_started_at)
+    CONSTRAINT bcfy_playlist_poll_log_pkey PRIMARY KEY (uuid, poll_started_at)
 );
-
-CREATE TABLE IF NOT EXISTS bcfy_tags (
-    tag_id        INTEGER PRIMARY KEY,
-    tag_descr     TEXT NOT NULL,
-    allow_listen  BOOLEAN NOT NULL,
-    is_active     BOOLEAN DEFAULT TRUE,
-    fetched_at    TIMESTAMPTZ DEFAULT NOW(),
-    raw_json      JSONB
-);
-CREATE INDEX IF NOT EXISTS bcfy_tags_descr_idx ON bcfy_tags(tag_descr);
 
 -- ============================================================
--- 2) INGEST CACHE (feeds, talkgroups, tags map)
--- ============================================================
-
-CREATE TABLE IF NOT EXISTS bcfy_feeds (
-    feed_id        INTEGER PRIMARY KEY,
-    name           TEXT NOT NULL,
-    description    TEXT,
-    stid           INTEGER REFERENCES bcfy_states(stid)    ON DELETE SET NULL,
-    cntid          INTEGER REFERENCES bcfy_counties(cntid) ON DELETE SET NULL,
-    coid           INTEGER REFERENCES bcfy_countries(coid) ON DELETE SET NULL,
-    is_active      BOOLEAN DEFAULT TRUE,
-    source_type    TEXT,
-    url_web        TEXT,
-    fetched_at     TIMESTAMPTZ DEFAULT NOW(),
-    raw_json       JSONB
-);
-CREATE INDEX IF NOT EXISTS bcfy_feeds_stid_idx ON bcfy_feeds(stid);
-CREATE INDEX IF NOT EXISTS bcfy_feeds_cntid_idx ON bcfy_feeds(cntid);
-CREATE INDEX IF NOT EXISTS bcfy_feeds_coid_idx ON bcfy_feeds(coid);
-CREATE INDEX IF NOT EXISTS bcfy_feeds_name_idx ON bcfy_feeds(name);
-
-CREATE TABLE IF NOT EXISTS bcfy_talkgroups (
-    tg_id          BIGINT PRIMARY KEY,
-    system_id      BIGINT,
-    alpha_tag      TEXT,
-    description    TEXT,
-    service_type   TEXT,
-    tag_id         INTEGER REFERENCES bcfy_tags(tag_id) ON DELETE SET NULL,
-    stid           INTEGER REFERENCES bcfy_states(stid)    ON DELETE SET NULL,
-    cntid          INTEGER REFERENCES bcfy_counties(cntid) ON DELETE SET NULL,
-    coid           INTEGER REFERENCES bcfy_countries(coid) ON DELETE SET NULL,
-    is_active      BOOLEAN DEFAULT TRUE,
-    fetched_at     TIMESTAMPTZ DEFAULT NOW(),
-    raw_json       JSONB
-);
-CREATE INDEX IF NOT EXISTS bcfy_talkgroups_stid_idx    ON bcfy_talkgroups(stid);
-CREATE INDEX IF NOT EXISTS bcfy_talkgroups_cntid_idx   ON bcfy_talkgroups(cntid);
-CREATE INDEX IF NOT EXISTS bcfy_talkgroups_coid_idx    ON bcfy_talkgroups(coid);
-CREATE INDEX IF NOT EXISTS bcfy_talkgroups_service_idx ON bcfy_talkgroups(service_type);
-CREATE INDEX IF NOT EXISTS bcfy_talkgroups_tag_idx     ON bcfy_talkgroups(tag_id);
-
-CREATE TABLE IF NOT EXISTS bcfy_feed_tags (
-    feed_id        INTEGER NOT NULL REFERENCES bcfy_feeds(feed_id) ON DELETE CASCADE,
-    tag_id         INTEGER NOT NULL REFERENCES bcfy_tags(tag_id)   ON DELETE CASCADE,
-    fetched_at     TIMESTAMPTZ DEFAULT NOW(),
-    PRIMARY KEY (feed_id, tag_id)
-);
-CREATE INDEX IF NOT EXISTS bcfy_feed_tags_feed_idx ON bcfy_feed_tags(feed_id);
-CREATE INDEX IF NOT EXISTS bcfy_feed_tags_tag_idx  ON bcfy_feed_tags(tag_id);
-
--- ============================================================
--- 3) CALLS RAW QUEUE
+-- 3) RAW CALL METADATA
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS bcfy_calls_raw (
     call_uid       TEXT PRIMARY KEY,
     group_id       TEXT,
     ts             BIGINT,
-    feed_id        INTEGER REFERENCES bcfy_feeds(feed_id)         ON DELETE SET NULL,
-    tg_id          BIGINT  REFERENCES bcfy_talkgroups(tg_id)      ON DELETE SET NULL,
-    tag_id         INTEGER REFERENCES bcfy_tags(tag_id)           ON DELETE SET NULL,
+    feed_id        INTEGER,
+    tg_id          BIGINT,
+    tag_id         INTEGER,
     node_id        BIGINT,
     sid            BIGINT,
     site_id        BIGINT,
@@ -178,135 +121,75 @@ CREATE TABLE IF NOT EXISTS bcfy_calls_raw (
     ended_at       TIMESTAMPTZ,
     duration_ms    BIGINT,
     size_bytes     BIGINT,
-    fetched_at     TIMESTAMPTZ DEFAULT NOW(),
-    processed      BOOLEAN DEFAULT false,
+    fetched_at     TIMESTAMPTZ DEFAULT now(),
+    raw_json       JSONB,
+    processed      BOOLEAN DEFAULT FALSE,
     last_attempt   TIMESTAMPTZ,
     error          TEXT,
-    raw_json       JSONB
+    CONSTRAINT bcfy_calls_raw_group_ts_uidx UNIQUE (group_id, ts)
 );
-CREATE UNIQUE INDEX IF NOT EXISTS bcfy_calls_raw_group_ts_uidx ON bcfy_calls_raw (group_id, ts);
-CREATE INDEX IF NOT EXISTS bcfy_calls_raw_feed_idx  ON bcfy_calls_raw(feed_id);
-CREATE INDEX IF NOT EXISTS bcfy_calls_raw_tg_idx    ON bcfy_calls_raw(tg_id);
-CREATE INDEX IF NOT EXISTS bcfy_calls_raw_tag_idx   ON bcfy_calls_raw(tag_id);
-CREATE INDEX IF NOT EXISTS bcfy_calls_raw_start_idx ON bcfy_calls_raw(started_at);
+CREATE INDEX IF NOT EXISTS bcfy_calls_raw_feed_idx   ON bcfy_calls_raw(feed_id);
+CREATE INDEX IF NOT EXISTS bcfy_calls_raw_tg_idx     ON bcfy_calls_raw(tg_id);
+CREATE INDEX IF NOT EXISTS bcfy_calls_raw_tag_idx    ON bcfy_calls_raw(tag_id);
+CREATE INDEX IF NOT EXISTS bcfy_calls_raw_start_idx  ON bcfy_calls_raw(started_at);
+CREATE INDEX IF NOT EXISTS bcfy_calls_raw_node_idx   ON bcfy_calls_raw(node_id);
+CREATE INDEX IF NOT EXISTS bcfy_calls_raw_sid_idx    ON bcfy_calls_raw(sid);
+CREATE INDEX IF NOT EXISTS bcfy_calls_raw_site_idx   ON bcfy_calls_raw(site_id);
+
+COMMENT ON TABLE bcfy_calls_raw IS 'Raw call metadata queue from Broadcastify Calls endpoint.';
 
 -- ============================================================
--- 4) RECORDINGS & TRANSCRIPTS
+-- 4) TRANSCRIPTS
 -- ============================================================
-
-CREATE TABLE IF NOT EXISTS recordings (
-    id                 BIGSERIAL PRIMARY KEY,
-    feed_id            INTEGER REFERENCES bcfy_feeds(feed_id)     ON DELETE SET NULL,
-    tg_id              BIGINT  REFERENCES bcfy_talkgroups(tg_id)  ON DELETE SET NULL,
-    tag_id             INTEGER REFERENCES bcfy_tags(tag_id)       ON DELETE SET NULL,
-    call_uid           TEXT UNIQUE,
-    group_id           TEXT,
-    ts                 BIGINT,
-    s3_bucket          TEXT NOT NULL DEFAULT 'feeds',
-    s3_key             TEXT NOT NULL,
-    format             TEXT DEFAULT 'mp3',
-    duration_seconds   INT,
-    started_at         TIMESTAMPTZ,
-    created_at         TIMESTAMPTZ DEFAULT NOW(),
-    processed          BOOLEAN DEFAULT false,
-    meta_json          JSONB
-);
-CREATE INDEX IF NOT EXISTS recordings_feed_idx     ON recordings(feed_id);
-CREATE INDEX IF NOT EXISTS recordings_tg_idx       ON recordings(tg_id);
-CREATE INDEX IF NOT EXISTS recordings_tag_idx      ON recordings(tag_id);
-CREATE INDEX IF NOT EXISTS recordings_group_ts_idx ON recordings(group_id, ts);
-
-ALTER TABLE bcfy_calls_raw
-ADD CONSTRAINT bcfy_calls_raw_recording_fk
-    FOREIGN KEY (call_uid) REFERENCES recordings(call_uid)
-    ON DELETE SET NULL;
 
 CREATE TABLE IF NOT EXISTS transcripts (
-    id             BIGSERIAL PRIMARY KEY,
-    recording_id   BIGINT NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
-    text           TEXT,
-    words          JSONB,
-    language       TEXT,
-    model_name     TEXT,
-    created_at     TIMESTAMPTZ DEFAULT NOW(),
-    duration_seconds NUMERIC,
-    confidence     NUMERIC,
-    tsv            tsvector GENERATED ALWAYS AS (to_tsvector('english', coalesce(text,''))) STORED
+    id               BIGSERIAL PRIMARY KEY,
+    recording_id     BIGINT,
+    text             TEXT,
+    words            JSONB,
+    language         TEXT,
+    model_name       TEXT,
+    created_at       TIMESTAMPTZ DEFAULT now(),
+    tsv              tsvector DEFAULT to_tsvector('english', coalesce(text,'')),
+    duration_seconds NUMERIC NOT NULL,
+    confidence       NUMERIC NOT NULL,
+    call_uid         TEXT,
+    s3_bucket        TEXT,
+    s3_key           TEXT,
+    CONSTRAINT transcripts_call_uid_key UNIQUE (call_uid)
 );
-CREATE INDEX IF NOT EXISTS transcripts_tsv_idx       ON transcripts USING GIN (tsv);
-CREATE INDEX IF NOT EXISTS transcripts_recording_idx ON transcripts(recording_id);
 CREATE INDEX IF NOT EXISTS transcripts_lang_model_idx ON transcripts(language, model_name);
+CREATE INDEX IF NOT EXISTS transcripts_recording_idx  ON transcripts(recording_id);
+CREATE INDEX IF NOT EXISTS transcripts_tsv_idx        ON transcripts USING btree(tsv);
+
+ALTER TABLE IF EXISTS transcripts
+    ADD CONSTRAINT transcripts_call_fk
+    FOREIGN KEY (call_uid) REFERENCES bcfy_calls_raw(call_uid)
+    ON DELETE SET NULL;
+
+COMMENT ON TABLE transcripts IS 'Text transcriptions of recordings with FTS tsvector.';
 
 -- ============================================================
--- 5) NLP / ANALYTICS
--- ============================================================
-
-CREATE TABLE IF NOT EXISTS detected_terms (
-    recording_id  BIGINT NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
-    term          TEXT NOT NULL,
-    hits          INT  NOT NULL,
-    is_street     BOOLEAN NOT NULL DEFAULT FALSE,
-    PRIMARY KEY (recording_id, term)
-);
-CREATE INDEX IF NOT EXISTS detected_terms_term_idx   ON detected_terms(term);
-CREATE INDEX IF NOT EXISTS detected_terms_street_idx ON detected_terms(is_street);
-
-CREATE TABLE IF NOT EXISTS streets_norm (
-    street_id    BIGSERIAL PRIMARY KEY,
-    street_norm  TEXT UNIQUE NOT NULL,
-    city         TEXT,
-    state        TEXT,
-    lat          NUMERIC(9,6),
-    lon          NUMERIC(9,6)
-);
-
-CREATE TABLE IF NOT EXISTS call_streets (
-    recording_id BIGINT NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
-    street_id    BIGINT NOT NULL REFERENCES streets_norm(street_id) ON DELETE RESTRICT,
-    hits         INT NOT NULL DEFAULT 1,
-    PRIMARY KEY (recording_id, street_id)
-);
-CREATE INDEX IF NOT EXISTS call_streets_street_idx ON call_streets(street_id);
-
-CREATE TABLE IF NOT EXISTS ratings (
-    recording_id BIGINT NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
-    category     TEXT   NOT NULL,
-    label        TEXT   NOT NULL CHECK (label IN ('good','bad')),
-    score        NUMERIC(3,2),
-    notes        TEXT,
-    rated_by     TEXT,
-    rated_at     TIMESTAMPTZ DEFAULT NOW(),
-    PRIMARY KEY (recording_id, category)
-);
-CREATE INDEX IF NOT EXISTS ratings_category_idx ON ratings(category, label);
-
-CREATE TABLE IF NOT EXISTS keyword_hits (
-    id             BIGSERIAL PRIMARY KEY,
-    recording_id   BIGINT NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
-    keyword        TEXT NOT NULL,
-    matched_text   TEXT,
-    matched_at     TIMESTAMPTZ DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS keyword_hits_recording_idx ON keyword_hits(recording_id);
-CREATE INDEX IF NOT EXISTS keyword_hits_keyword_idx   ON keyword_hits(keyword);
-
--- ============================================================
--- 6) PIPELINE STATE
+-- 5) PIPELINE STATE MACHINE
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS processing_state (
     id             BIGSERIAL PRIMARY KEY,
     call_uid       TEXT UNIQUE,
-    recording_id   BIGINT REFERENCES recordings(id) ON DELETE SET NULL,
+    recording_id   BIGINT,
     status         TEXT NOT NULL,
     last_error     TEXT,
-    updated_at     TIMESTAMPTZ DEFAULT NOW(),
+    updated_at     TIMESTAMPTZ DEFAULT now(),
     CONSTRAINT processing_state_status_chk
         CHECK (status IN ('queued','downloaded','transcribed','indexed','error'))
 );
 CREATE INDEX IF NOT EXISTS processing_state_status_idx ON processing_state(status);
 
--- Auto-update timestamp trigger
+ALTER TABLE IF EXISTS processing_state
+    ADD CONSTRAINT processing_state_call_uid_fkey
+    FOREIGN KEY (call_uid) REFERENCES bcfy_calls_raw(call_uid)
+    ON DELETE SET NULL;
+
 CREATE OR REPLACE FUNCTION update_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -321,17 +204,6 @@ BEFORE UPDATE ON processing_state
 FOR EACH ROW
 EXECUTE FUNCTION update_timestamp();
 
--- ============================================================
--- COMMENTS
--- ============================================================
-
-COMMENT ON TABLE bcfy_calls_raw  IS 'Raw call metadata queue from Broadcastify Calls endpoint.';
-COMMENT ON TABLE recordings      IS 'Object storage references for downloaded call audio.';
-COMMENT ON TABLE transcripts     IS 'Text transcriptions of recordings with FTS tsvector.';
-COMMENT ON TABLE detected_terms  IS 'Tokenized terms from transcripts (street & keyword extraction).';
-COMMENT ON TABLE call_streets    IS 'Links between recordings and normalized streets.';
-COMMENT ON TABLE ratings         IS 'Human review results (quality, incident relevance, etc).';
-COMMENT ON TABLE keyword_hits    IS 'Logged matches of watched keywords in transcripts.';
 COMMENT ON TABLE processing_state IS 'Pipeline state machine tracking for ingestion and NLP stages.';
 
 -- ============================================================
