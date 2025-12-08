@@ -75,7 +75,7 @@ services:
 
 
   app_transcription:
-    build: ./app_transcription
+    build: ./app_transcribe
     container_name: scanner-transcription
     env_file: [ .env ]
     depends_on: [ postgres, redis, minio ]
