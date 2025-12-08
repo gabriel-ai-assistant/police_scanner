@@ -1,5 +1,5 @@
 import time
-from .auth import generate_jwt
+from auth import generate_jwt
 
 _cached_token = None
 _expiry = 0
