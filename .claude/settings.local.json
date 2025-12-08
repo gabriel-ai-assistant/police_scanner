@@ -22,7 +22,13 @@
       "Bash(grep:*)",
       "Bash(docker-compose config:*)",
       "Bash(git -C \"p:/Git/police_scanner\" log --all --oneline --decorate -10)",
-      "Bash(git -C \"p:/Git/police_scanner\" diff --name-only main Fly-DB-Branch)"
+      "Bash(git -C \"p:/Git/police_scanner\" diff --name-only main Fly-DB-Branch)",
+      "Bash(pwsh:*)",
+      "Bash(psql:*)",
+      "Bash(python:*)",
+      "Bash(timeout 300 python:*)",
+      "Bash(git rev-list:*)",
+      "Bash(docker compose:*)"
     ],
     "deny": [],
     "ask": []
