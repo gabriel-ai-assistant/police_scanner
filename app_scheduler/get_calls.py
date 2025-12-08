@@ -95,14 +95,14 @@ async def get_db():
 # =========================================================
 # HTTP (with API call tracking)
 # =========================================================
-async def fetch_json(session, url, token, conn=None):
-    """Fetch JSON with optional API call tracking."""
+async def fetch_json(session, url, token, conn=None, params=None):
+    """Fetch JSON with optional API call tracking and query parameters."""
     start = time.time()
     status_code = 0
     error_msg = None
 
     try:
-        async with session.get(url, headers={"Authorization": f"Bearer {token}"}) as r:
+        async with session.get(url, headers={"Authorization": f"Bearer {token}"}, params=params) as r:
             text = await r.text()
             status_code = r.status
             duration_ms = int((time.time() - start) * 1000)
@@ -286,19 +286,30 @@ async def poll_end(conn, uuid, ok, notes):
     """, uuid, ok, notes)
 
 # =========================================================
-# Group Fetching Helper (for parallel execution)
+# Live Calls Fetching (replaces group-based fetching)
 # =========================================================
-async def fetch_group_calls(session, token, conn, gid, start, end):
-    """Fetch calls for a single group (parallelizable)."""
-    url = f"{CALLS_BASE}/group_archives/{gid}/{start}/{end}"
-    try:
-        data = await fetch_json(session, url, token, conn)  # Pass conn for tracking
-        calls = data.get("calls", [])
-        log.info(f"  • {len(calls)} calls from group {gid}")
-        return (gid, calls, None)
-    except Exception as e:
-        log.warning(f"group {gid} err {e}")
-        return (gid, [], str(e))
+async def fetch_live_calls(session, token, conn, playlist_uuid, last_pos=None):
+    """Fetch live calls for entire playlist using position-based polling.
+
+    Args:
+        session: aiohttp session
+        token: JWT token
+        conn: database connection for metrics tracking
+        playlist_uuid: Broadcastify playlist UUID
+        last_pos: Unix timestamp from previous lastPos response (None = last 5 minutes)
+
+    Returns:
+        dict with 'calls' list and 'lastPos' timestamp
+    """
+    url = f"{CALLS_BASE}/live/"
+    params = {"playlist_uuid": playlist_uuid}
+
+    if last_pos and last_pos > 0:
+        params["pos"] = int(last_pos)  # Incremental: only new calls
+    # else: returns last 5 minutes of calls (default behavior)
+
+    data = await fetch_json(session, url, token, conn, params=params)
+    return data
 
 # =========================================================
 # Playlist Processor
@@ -306,88 +317,36 @@ async def fetch_group_calls(session, token, conn, gid, start, end):
 async def process_playlist(conn, session, token, pl):
     uuid, name = pl["uuid"], pl["name"]
     log.info(f"▶️ Playlist '{name}' ({uuid})")
-    now = int(time.time())
-    row = await conn.fetchrow("SELECT COUNT(*) AS c FROM bcfy_calls_raw;")
-    fresh = row["c"] == 0
 
-    # Use last_seen from playlist data to only fetch NEW calls
-    last_seen_ts = pl.get("last_seen", 0)
+    # Get last position from database (stores lastPos from previous API response)
+    last_pos = pl.get("last_pos", 0)
 
-    if fresh:
-        # First run: get last 30 days
-        start = int((datetime.now(timezone.utc) - timedelta(days=30)).timestamp())
-    else:
-        # Use last_seen if available, with 15-min buffer for clock skew
-        if last_seen_ts > 0:
-            start = max(last_seen_ts, now - 900)  # Safety buffer
-        else:
-            start = now - 900  # Fallback if no last_seen
-
-    end   = now
     await poll_start(conn, uuid)
 
     try:
-        # Try database cache first (eliminates API call)
-        groups_json = pl.get("groups_json")
+        # Single API call for entire playlist (replaces all group calls + chunking)
+        data = await fetch_live_calls(session, token, conn, uuid, last_pos)
 
-        if groups_json:
-            # Use cached groups from database
-            groups = groups_json if isinstance(groups_json, list) else json.loads(groups_json)
-            log.info(f"Using {len(groups)} cached groups from DB")
-        else:
-            # Fallback: API call (only if groups not in DB)
-            log.warning(f"No cached groups for {uuid}, fetching from API")
-            pinfo = await fetch_json(session, f"{CALLS_BASE}/playlist_get/{uuid}", token, conn)
-            groups = pinfo.get("groups", [])
+        calls = data.get("calls", [])
+        new_last_pos = data.get("lastPos")  # Unix timestamp from API
 
-            # Cache for next time
+        log.info(f"Received {len(calls)} calls (lastPos: {new_last_pos})")
+
+        # Insert metadata for all calls
+        for call in calls:
+            await quick_insert_call_metadata(conn, uuid, call)
+
+        # Update last_pos for next poll (critical for incremental polling)
+        if new_last_pos:
             await conn.execute(
-                "UPDATE bcfy_playlists SET groups_json=$1 WHERE uuid=$2",
-                json.dumps(groups), uuid
+                "UPDATE bcfy_playlists SET last_pos=$1 WHERE uuid=$2",
+                new_last_pos,
+                uuid
             )
 
-        if not groups:
-            await poll_end(conn, uuid, True, "no groups")
-            return
-
-        log.info(f"{len(groups)} groups found; chunking 8h windows...")
-        max_span = 28800
-        cur = start
-        while cur < end:
-            chunk_end = min(cur + max_span, end)
-            log.info(f"⏱ Chunk {datetime.fromtimestamp(cur, tz=timezone.utc)} → {datetime.fromtimestamp(chunk_end, tz=timezone.utc)}")
-
-            # Parallelize group fetching for this chunk
-            tasks = [
-                fetch_group_calls(session, token, conn, g["groupId"], cur, chunk_end)
-                for g in groups
-            ]
-
-            # Execute all group fetches in parallel
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-
-            # Process results from all groups
-            for gid, calls, error in results:
-                if error:
-                    log.error(f"Group {gid} failed: {error}")
-                    continue
-
-                log.info(f"Inserting metadata for {len(calls)} calls from group {gid}")
-                for c in calls:
-                    # Fast metadata insert (no audio processing)
-                    await quick_insert_call_metadata(conn, uuid, c)
-
-            cur = chunk_end
-
-        # Update last_seen to end of window we just processed (enables incremental polling)
-        await conn.execute(
-            "UPDATE bcfy_playlists SET last_seen=$1 WHERE uuid=$2",
-            end,  # Use the 'end' timestamp
-            uuid
-        )
-
-        await poll_end(conn, uuid, True, f"sync window={start}->{end}")
+        await poll_end(conn, uuid, True, f"Processed {len(calls)} calls, lastPos={new_last_pos}")
         log.info(f"✅ Finished playlist '{name}'")
+
     except Exception as e:
         await poll_end(conn, uuid, False, str(e))
         log.error(f"❌ Playlist '{name}' failed: {e}")
@@ -409,7 +368,7 @@ async def ingest_loop():
         async with aiohttp.ClientSession() as s:
             token = get_jwt_token()  # Use cached JWT token (1 hour validity, reused)
             playlists = await conn.fetch(
-                "SELECT uuid,name,COALESCE(last_seen,0) AS last_seen,groups_json FROM bcfy_playlists WHERE sync=TRUE;"
+                "SELECT uuid,name,COALESCE(last_pos,0) AS last_pos FROM bcfy_playlists WHERE sync=TRUE;"
             )
             if not playlists:
                 log.warning("No sync=TRUE playlists")

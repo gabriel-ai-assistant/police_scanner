@@ -249,3 +249,19 @@ COMMENT ON TABLE api_call_metrics IS 'Tracks all Broadcastify API calls for opti
 -- ============================================================
 -- END
 -- ============================================================
+
+-- ============================================================
+-- Migration: Rename last_seen to last_pos for Live API
+-- ============================================================
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'bcfy_playlists' AND column_name = 'last_seen'
+    ) THEN
+        ALTER TABLE bcfy_playlists RENAME COLUMN last_seen TO last_pos;
+        RAISE NOTICE 'Renamed last_seen to last_pos for Live API compatibility';
+    END IF;
+END $$;
+
+COMMENT ON COLUMN bcfy_playlists.last_pos IS 'Unix timestamp from lastPos attribute in Live API response';
