@@ -9,6 +9,7 @@ import Feeds from './pages/Feeds';
 import Calls from './pages/Calls';
 import Search from './pages/Search';
 import Settings from './pages/Settings';
+import Admin from './pages/Admin';
 
 function App() {
   return (
@@ -17,12 +18,13 @@ function App() {
       <div className="flex flex-1 flex-col">
         <Navbar />
         <main className="flex-1 overflow-y-auto bg-muted/30 p-6">
-          <Suspense fallback={<LoadingScreen />}>            
+          <Suspense fallback={<LoadingScreen />}>
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/feeds" element={<Feeds />} />
               <Route path="/calls" element={<Calls />} />
               <Route path="/search" element={<Search />} />
+              <Route path="/admin" element={<Admin />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

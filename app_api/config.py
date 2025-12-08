@@ -1,0 +1,47 @@
+from pydantic_settings import BaseSettings
+from typing import List
+
+
+class Settings(BaseSettings):
+    # Database
+    PGHOST: str = "localhost"
+    PGPORT: int = 5432
+    PGUSER: str = "scan"
+    PGPASSWORD: str
+    PGDATABASE: str = "scanner"
+
+    # Redis
+    REDIS_URL: str = "redis://redis:6379/0"
+
+    # API
+    API_HOST: str = "0.0.0.0"
+    API_PORT: int = 8000
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:80"
+    LOG_LEVEL: str = "INFO"
+
+    # Cache TTLs (seconds)
+    CACHE_DASHBOARD_TTL: int = 30
+    CACHE_GEOGRAPHY_TTL: int = 3600
+    CACHE_PLAYLISTS_TTL: int = 300
+
+    # MinIO
+    MINIO_ENDPOINT: str = "192.168.1.152:9000"
+    MINIO_ROOT_USER: str = "scanner"
+    MINIO_ROOT_PASSWORD: str
+    MINIO_BUCKET: str = "feeds"
+    MINIO_USE_SSL: bool = False
+
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
+    @property
+    def database_url(self) -> str:
+        return f"postgresql://{self.PGUSER}:{self.PGPASSWORD}@{self.PGHOST}:{self.PGPORT}/{self.PGDATABASE}"
+
+    @property
+    def cors_origins_list(self) -> List[str]:
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
+
+
+settings = Settings()

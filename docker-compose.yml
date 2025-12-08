@@ -82,26 +82,52 @@ services:
     volumes:
       - ./shared_bcfy:/app/shared_bcfy:ro
 
-# ===========================================================
-# FRONTEND SERVICE
-# ===========================================================
+  # ===========================================================
+  # API SERVICE
+  # ===========================================================
 
-#  frontend:
-#    build:
-#      context: ./frontend
-#      dockerfile: Dockerfile
-#    container_name: scanner-frontend
-#    ports:
-#      - "3000:3000"
-#    depends_on:
-#      - app_scheduler
-#      - app_ingest
-#      - app_transcription
-#    environment:
-#      - VITE_API_URL=http://localhost:8000
-#    restart: unless-stopped
+  app_api:
+    build: ./app_api
+    container_name: scanner-api
+    env_file: [ .env ]
+    environment:
+      PGHOST: ${PGHOST}
+      PGPORT: ${PGPORT}
+      PGUSER: ${PGUSER}
+      PGPASSWORD: ${PGPASSWORD}
+      PGDATABASE: ${PGDATABASE}
+      REDIS_URL: ${REDIS_URL}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      CORS_ORIGINS: "http://localhost:3000,http://localhost:80,http://localhost"
+      LOG_LEVEL: INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
 
+  # ===========================================================
+  # FRONTEND SERVICE
+  # ===========================================================
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: scanner-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - app_api
+    environment:
+      - VITE_API_URL=http://app_api:8000
+    restart: unless-stopped
 
 # ===========================================================
 # VOLUMES

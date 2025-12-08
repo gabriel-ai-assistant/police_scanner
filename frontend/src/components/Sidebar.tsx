@@ -1,4 +1,4 @@
-import { Radio, Search, Settings, Waves, LayoutDashboard } from 'lucide-react';
+import { Radio, Search, Settings, Waves, LayoutDashboard, Sliders } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 import { cn } from '../lib/utils';
@@ -8,6 +8,7 @@ const links = [
   { to: '/feeds', label: 'Feeds', icon: Radio },
   { to: '/calls', label: 'Calls', icon: Waves },
   { to: '/search', label: 'Search', icon: Search },
+  { to: '/admin', label: 'Admin', icon: Sliders },
   { to: '/settings', label: 'Settings', icon: Settings }
 ];
 

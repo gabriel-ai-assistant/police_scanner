@@ -1,0 +1,36 @@
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+
+
+class TranscriptBase(BaseModel):
+    """Base transcript model."""
+    call_uid: str
+    text: Optional[str] = None
+    confidence: Optional[float] = None
+    duration_seconds: Optional[float] = None
+    language: Optional[str] = None
+    model_name: Optional[str] = None
+
+
+class Transcript(TranscriptBase):
+    """Full transcript model."""
+    id: int
+    created_at: Optional[datetime] = None
+    recording_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TranscriptSearchResult(Transcript):
+    """Transcript search result with relevance rank."""
+    rank: Optional[float] = None
+
+
+class TranscriptionQuality(BaseModel):
+    """Transcription quality metrics."""
+    avg_confidence: float
+    total_transcripts: int
+    avg_duration_seconds: float
+    language_distribution: dict

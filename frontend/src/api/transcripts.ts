@@ -2,21 +2,22 @@
 import { api } from '@/lib/api';
 
 export type Transcript = {
-  id: string;
-  groupId?: string;
-  ts?: number;
+  id: number;
+  call_uid?: string;
   text: string;
-  src?: string;
+  confidence?: number;
+  language?: string;
+  created_at?: string;
 };
 
 const isMock = import.meta.env.VITE_MOCK === '1';
 
 const mockTranscripts: Transcript[] = [
-  { id: 'mock-1', groupId: '7017-38529', ts: 1730493701, text: 'Unit 12 responding to scene.', src: 'dispatcher' },
-  { id: 'mock-2', groupId: '7017-38273', ts: 1730493755, text: 'Fire alarm active at 5th & Main.', src: 'engine-3' },
+  { id: 1, call_uid: 'call-1', text: 'Unit 12 responding to scene.', confidence: 0.89, language: 'en' },
+  { id: 2, call_uid: 'call-2', text: 'Fire alarm active at 5th & Main.', confidence: 0.92, language: 'en' },
 ];
 
-export async function getTranscript(id: string): Promise<Transcript | undefined> {
+export async function getTranscript(id: number): Promise<Transcript | undefined> {
   if (isMock) return mockTranscripts.find(t => t.id === id);
   try {
     const response = await api.get<Transcript>(`/transcripts/${id}`);
@@ -27,19 +28,31 @@ export async function getTranscript(id: string): Promise<Transcript | undefined>
   }
 }
 
-export async function listTranscripts(opts?: { groupId?: string; limit?: number }): Promise<Transcript[]> {
-  const { groupId, limit = 20 } = opts || {};
+export async function listTranscripts(opts?: { callUid?: string; limit?: number }): Promise<Transcript[]> {
+  const { callUid, limit = 20 } = opts || {};
   if (isMock) {
-    const base = groupId ? mockTranscripts.filter(t => t.groupId === groupId) : mockTranscripts;
+    const base = callUid ? mockTranscripts.filter(t => t.call_uid === callUid) : mockTranscripts;
     return base.slice(0, limit);
   }
   try {
-    const path = groupId ? `/transcripts?groupId=${encodeURIComponent(groupId)}&limit=${limit}` : `/transcripts?limit=${limit}`;
-    const response = await api.get<Transcript[]>(path);
+    const params: Record<string, any> = { limit };
+    if (callUid) params.call_uid = callUid;
+    const response = await api.get<Transcript[]>('/transcripts', { params });
     return response.data ?? [];
   } catch (error) {
     console.warn('Using mock transcripts due to API error', error);
-    const base = groupId ? mockTranscripts.filter(t => t.groupId === groupId) : mockTranscripts;
+    const base = callUid ? mockTranscripts.filter(t => t.call_uid === callUid) : mockTranscripts;
     return base.slice(0, limit);
+  }
+}
+
+export async function searchTranscripts(query: string = '', limit: number = 50): Promise<Transcript[]> {
+  if (isMock) return mockTranscripts.slice(0, limit);
+  try {
+    const response = await api.get<Transcript[]>('/transcripts/search', { params: { q: query, limit } });
+    return response.data ?? [];
+  } catch (error) {
+    console.warn('Using mock transcripts due to API error', error);
+    return mockTranscripts.slice(0, limit);
   }
 }

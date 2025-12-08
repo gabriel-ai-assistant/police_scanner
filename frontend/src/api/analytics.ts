@@ -30,14 +30,47 @@ const mockTopTalkgroups: TalkgroupHit[] = [
   { groupId: '7017-39043', display: 'Fire Tac 3', count: 22 },
 ];
 
+export type DashboardMetrics = {
+  total_calls_24h: number;
+  active_playlists: number;
+  transcripts_today: number;
+  avg_transcription_confidence: number;
+  processing_queue_size: number;
+  api_calls_today: number;
+  recent_calls: any[];
+  top_talkgroups: TalkgroupHit[];
+};
+
+const mockDashboardMetrics: DashboardMetrics = {
+  total_calls_24h: 145,
+  active_playlists: 8,
+  transcripts_today: 127,
+  avg_transcription_confidence: 0.82,
+  processing_queue_size: 3,
+  api_calls_today: 247,
+  recent_calls: [],
+  top_talkgroups: mockTopTalkgroups
+};
+
 export async function fetchKeywordHits(): Promise<KeywordHit[]> {
   if (isMock) return mockKeywordHits;
   try {
-    const res = await api.get<KeywordHit[]>('/analytics/keywordHits');
+    const res = await api.get<KeywordHit[]>('/analytics/keywords');
     return res.data ?? mockKeywordHits;
   } catch (error) {
     console.warn('Using mock keyword hits due to API error', error);
     return mockKeywordHits;
+  }
+}
+
+export async function getDashboardMetrics(): Promise<DashboardMetrics> {
+  if (isMock) return mockDashboardMetrics;
+  try {
+    const res = await api.get<DashboardMetrics>('/analytics/dashboard');
+    return res.data ?? mockDashboardMetrics;
+  } catch (error) {
+    console.warn('Using mock dashboard metrics due to API error', error);
+    return mockDashboardMetrics;
   }
 }
 
@@ -55,7 +88,7 @@ export async function fetchHourlyActivity(): Promise<HourlyPoint[]> {
 export async function fetchTopTalkgroups(limit = 10): Promise<TalkgroupHit[]> {
   if (isMock) return mockTopTalkgroups.slice(0, limit);
   try {
-    const res = await api.get<TalkgroupHit[]>(`/analytics/topTalkgroups?limit=${limit}`);
+    const res = await api.get<TalkgroupHit[]>(`/analytics/talkgroups/top?limit=${limit}`);
     const data = res.data ?? [];
     return data.slice(0, limit);
   } catch (error) {
@@ -63,3 +96,6 @@ export async function fetchTopTalkgroups(limit = 10): Promise<TalkgroupHit[]> {
     return mockTopTalkgroups.slice(0, limit);
   }
 }
+
+// Export aliases for Dashboard compatibility
+export const getKeywordHits = fetchKeywordHits;

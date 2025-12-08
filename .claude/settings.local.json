@@ -15,7 +15,11 @@
       "Bash(python3:*)",
       "Bash(powershell -Command \"\n$cred = New-Object System.Management.Automation.PSCredential(''mfly'', (ConvertTo-SecureString ''B0nghit3'' -AsPlainText -Force))\n$session = New-PSSession -HostName 192.168.1.120 -UserName mfly -Credential $cred -SSHTransport\nInvoke-Command -Session $session -ScriptBlock { bash /tmp/verify_live_api_deployment.sh }\nRemove-PSSession $session\n\")",
       "Bash(export SSHPASS=\"B0nghit3\")",
-      "Bash(sshpass:*)"
+      "Bash(sshpass:*)",
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []
