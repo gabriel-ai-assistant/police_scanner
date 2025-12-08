@@ -19,7 +19,8 @@
       "Bash(find:*)",
       "Bash(wc:*)",
       "Bash(cat:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(docker-compose config:*)"
     ],
     "deny": [],
     "ask": []
