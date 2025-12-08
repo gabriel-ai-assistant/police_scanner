@@ -5,7 +5,7 @@
 
 # Remote host configuration
 DOCKER_HOST="192.168.1.120"
-REMOTE_USER="root"  # Change if needed
+REMOTE_USER="mfly"
 REMOTE_DIR="/opt/policescanner"
 
 # Colors for output

@@ -7,7 +7,7 @@ set -e  # Exit on error
 
 # Remote host configuration
 DOCKER_HOST="192.168.1.120"
-REMOTE_USER="root"  # Change if needed
+REMOTE_USER="mfly"
 REMOTE_DIR="/opt/policescanner"
 
 # Colors for output
@@ -36,21 +36,19 @@ fi
 echo -e "${GREEN}✓ SSH connection successful${NC}"
 echo ""
 
-# Sync modified files to remote host
+# Sync modified files to remote host using scp
 echo "Step 2: Syncing optimized code to remote host..."
-rsync -avz --progress \
-    --exclude='*.pyc' \
-    --exclude='__pycache__' \
-    --exclude='.git' \
-    --exclude='venv' \
-    --exclude='node_modules' \
-    app_scheduler/get_calls.py \
-    app_scheduler/scheduler.py \
-    app_scheduler/db_pool.py \
-    app_scheduler/audio_worker.py \
-    db/init.sql \
-    db/monitoring_queries.sql \
-    ${REMOTE_USER}@${DOCKER_HOST}:${REMOTE_DIR}/
+
+# Create directories on remote if needed
+ssh ${REMOTE_USER}@${DOCKER_HOST} "mkdir -p ${REMOTE_DIR}/app_scheduler ${REMOTE_DIR}/db"
+
+# Copy files using scp
+scp app_scheduler/get_calls.py ${REMOTE_USER}@${DOCKER_HOST}:${REMOTE_DIR}/app_scheduler/
+scp app_scheduler/scheduler.py ${REMOTE_USER}@${DOCKER_HOST}:${REMOTE_DIR}/app_scheduler/
+scp app_scheduler/db_pool.py ${REMOTE_USER}@${DOCKER_HOST}:${REMOTE_DIR}/app_scheduler/
+scp app_scheduler/audio_worker.py ${REMOTE_USER}@${DOCKER_HOST}:${REMOTE_DIR}/app_scheduler/
+scp db/init.sql ${REMOTE_USER}@${DOCKER_HOST}:${REMOTE_DIR}/db/
+scp db/monitoring_queries.sql ${REMOTE_USER}@${DOCKER_HOST}:${REMOTE_DIR}/db/
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✓ Files synced successfully${NC}"
