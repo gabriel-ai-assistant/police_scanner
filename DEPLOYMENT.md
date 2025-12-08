@@ -80,8 +80,6 @@ docker-compose logs -f app_api
 # Access the application
 # Frontend: http://localhost
 # API: http://localhost:8000/docs (OpenAPI docs)
-# Database Admin: http://localhost:8081
-# MinIO: http://localhost:9001
 ```
 
 ### Stopping Services
@@ -98,11 +96,14 @@ docker-compose down -v  # Remove volumes too
 |---------|------|-----|---------|
 | Frontend (Nginx) | 80 | http://localhost | Web interface |
 | Backend API | 8000 | http://localhost:8000 | REST API |
-| PostgreSQL | 5432 | localhost:5432 | Database |
 | Redis | 6379 | localhost:6379 | Message broker/cache |
-| MinIO | 9000/9001 | localhost:9000 | Audio file storage |
 | Meilisearch | 7700 | localhost:7700 | Full-text search |
-| Adminer | 8081 | http://localhost:8081 | DB management |
+
+**External Services (not in Docker):**
+| Service | Location | Purpose |
+|---------|----------|---------|
+| PostgreSQL | AWS RDS (police-scanner.cilycke4i4nz.us-east-1.rds.amazonaws.com:5432) | Database |
+| MinIO | External server (192.168.1.152:9000) | Audio file storage |
 
 ## 🔌 API Endpoints
 
@@ -189,9 +190,9 @@ CACHE_DASHBOARD_TTL=30
 CACHE_GEOGRAPHY_TTL=3600
 CACHE_PLAYLISTS_TTL=300
 
-# MinIO & other services
-MINIO_ENDPOINT=192.168.1.152:9000
-REDIS_URL=redis://redis:6379/0
+# External services (not in Docker)
+MINIO_ENDPOINT=192.168.1.152:9000  # External MinIO server
+REDIS_URL=redis://redis:6379/0     # Docker service
 ```
 
 ### Frontend Configuration
@@ -259,10 +260,13 @@ curl http://localhost:8000/api/geography/countries | jq
 # Check logs
 docker-compose logs app_api
 
-# Verify database connection
-docker-compose logs postgres
+# Verify database connection (AWS RDS)
+# Check .env has correct RDS credentials:
+# PGHOST=police-scanner.cilycke4i4nz.us-east-1.rds.amazonaws.com
 
-# Ensure .env has correct database credentials
+# Test external database connection
+docker run --rm -i -e PGPASSWORD="$PGPASSWORD" postgres:16 \
+  psql -h $PGHOST -U $PGUSER -d $PGDATABASE -c "SELECT 1"
 ```
 
 ### Frontend shows CORS errors
@@ -273,8 +277,9 @@ docker-compose logs postgres
 
 ### Playlists not loading
 ```bash
-# Check if database has playlist data
-docker-compose exec postgres psql -U scan -d scanner -c "SELECT COUNT(*) FROM bcfy_playlists;"
+# Check if database has playlist data (AWS RDS)
+docker run --rm -i -e PGPASSWORD="$PGPASSWORD" postgres:16 \
+  psql -h $PGHOST -U $PGUSER -d $PGDATABASE -c "SELECT COUNT(*) FROM bcfy_playlists;"
 ```
 
 ### Admin panel not working
@@ -315,13 +320,15 @@ police_scanner/
 
 ## 🚀 Production Deployment
 
-### Recommendations
-1. **Use AWS RDS** for PostgreSQL (already configured in .env)
-2. **Use AWS S3** instead of MinIO for audio storage
-3. **Add SSL/TLS** via CloudFront or Nginx reverse proxy
-4. **Enable authentication** (JWT tokens via API)
-5. **Set up monitoring** (CloudWatch, Prometheus)
-6. **Configure auto-scaling** (ECS, Kubernetes)
+### Current Production Setup
+1. ✅ **AWS RDS PostgreSQL** - Currently in use (police-scanner.cilycke4i4nz.us-east-1.rds.amazonaws.com)
+2. ✅ **External MinIO** - Currently in use (192.168.1.152:9000)
+3. **Future considerations:**
+   - Migrate MinIO to AWS S3 for cloud storage
+   - Add SSL/TLS via CloudFront or Nginx reverse proxy
+   - Enable authentication (JWT tokens via API)
+   - Set up monitoring (CloudWatch, Prometheus)
+   - Configure auto-scaling (ECS, Kubernetes)
 
 ### Docker Deployment
 ```bash

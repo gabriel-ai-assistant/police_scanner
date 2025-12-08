@@ -11,8 +11,6 @@ Wait 30-60 seconds, then open browser to:
 
 - **🖥️ Frontend**: http://localhost
 - **📚 API Docs**: http://localhost:8000/docs
-- **🗄️ Database**: http://localhost:8081
-- **💾 MinIO**: http://localhost:9001
 
 ---
 
@@ -54,10 +52,10 @@ cd frontend && npm install @radix-ui/react-tabs && cd ..
 
 ### API returns 500 errors
 ```bash
-# Check database connection
-docker-compose logs postgres
+# Check API logs
+docker-compose logs app_api
 
-# Verify .env has correct credentials
+# Verify .env has correct database and service credentials
 ```
 
 ---
@@ -68,10 +66,8 @@ docker-compose logs postgres
 |---------|------|-----|
 | Frontend | 80 | http://localhost |
 | API | 8000 | http://localhost:8000 |
-| Database | 5432 | localhost:5432 |
 | Redis | 6379 | localhost:6379 |
-| MinIO | 9000 | localhost:9000 |
-| Adminer | 8081 | http://localhost:8081 |
+| MeiliSearch | 7700 | localhost:7700 |
 
 ---
 

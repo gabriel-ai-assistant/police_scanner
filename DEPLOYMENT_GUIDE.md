@@ -14,8 +14,12 @@
 Apply the database migrations to add monitoring tables and indexes:
 
 ```bash
-# Connect to PostgreSQL
-psql -U $PGUSER -h $PGHOST -p $PGPORT -d $PGDATABASE -f db/init.sql
+# Connect to external PostgreSQL (AWS RDS) using deploy_db.sh
+bash deploy_db.sh
+
+# Or manually using Docker postgres client:
+docker run --rm -i -e PGPASSWORD="$PGPASSWORD" postgres:16 \
+  psql -h $PGHOST -U $PGUSER -d $PGDATABASE -f - < db/init.sql
 ```
 
 **What this does:**
@@ -80,10 +84,10 @@ BCFY_API_KEY=your_key
 BCFY_APP_ID=your_app_id
 BCFY_BASE_URL=https://api.bcfy.io
 
-# MinIO/S3
-MINIO_ENDPOINT=localhost:9000
-MINIO_ROOT_USER=admin
-MINIO_ROOT_PASSWORD=adminadmin
+# MinIO/S3 (External Server)
+MINIO_ENDPOINT=192.168.1.152:9000
+MINIO_ROOT_USER=scanner
+MINIO_ROOT_PASSWORD=scanner1234
 MINIO_BUCKET=feeds
 AUDIO_BUCKET_PATH=calls
 
@@ -429,7 +433,7 @@ GROUP BY error;
 **Possible causes:**
 - Audio worker not running (check scheduler logs)
 - FFmpeg failures (check error column)
-- MinIO connection issues (check network)
+- External MinIO connection issues (verify network access to 192.168.1.152:9000)
 
 ### Issue: Slow Cycle Times
 
