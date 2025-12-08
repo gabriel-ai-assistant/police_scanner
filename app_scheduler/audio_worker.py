@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+"""
+Background worker to process unprocessed audio files.
+Runs independently of ingestion cycle for near-real-time processing.
+
+This worker:
+1. Finds calls with processed=FALSE in the database
+2. Downloads MP3 from Broadcastify URL
+3. Converts to optimized WAV using FFmpeg + librosa
+4. Uploads to MinIO
+5. Updates database with S3 URL and processed=TRUE
+"""
+
+import asyncio
+import aiohttp
+import os
+import logging
+from db_pool import get_connection, release_connection
+from get_calls import store_audio
+
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(__name__)
+
+BATCH_SIZE = int(os.getenv("AUDIO_WORKER_BATCH_SIZE", "20"))
+
+async def process_pending_audio():
+    """Process calls with processed=FALSE."""
+    conn = await get_connection()
+    try:
+        # Get unprocessed calls (oldest first)
+        calls = await conn.fetch("""
+            SELECT call_uid, url, raw_json
+            FROM bcfy_calls_raw
+            WHERE processed = FALSE AND error IS NULL
+            ORDER BY fetched_at ASC
+            LIMIT $1
+        """, BATCH_SIZE)
+
+        if not calls:
+            log.debug("No pending audio files")
+            return
+
+        log.info(f"Processing {len(calls)} pending audio files...")
+
+        async with aiohttp.ClientSession() as session:
+            for call in calls:
+                call_uid = call['call_uid']
+                src_url = call['url']
+
+                try:
+                    # Download, convert, upload (this can take 1-10s per file)
+                    s3_url = await store_audio(session, src_url, call_uid)
+
+                    # Update with S3 location
+                    await conn.execute("""
+                        UPDATE bcfy_calls_raw
+                        SET url = $1, processed = TRUE, last_attempt = NOW()
+                        WHERE call_uid = $2
+                    """, s3_url, call_uid)
+
+                    log.info(f"✓ Processed {call_uid}")
+
+                except Exception as e:
+                    # Mark error for retry later
+                    await conn.execute("""
+                        UPDATE bcfy_calls_raw
+                        SET error = $1, last_attempt = NOW()
+                        WHERE call_uid = $2
+                    """, str(e)[:500], call_uid)  # Truncate long errors
+
+                    log.error(f"✗ Failed {call_uid}: {e}")
+
+    finally:
+        await release_connection(conn)
+
+if __name__ == "__main__":
+    log.info("Starting audio worker...")
+    try:
+        asyncio.run(process_pending_audio())
+    except Exception as e:
+        log.exception(f"Fatal error: {e}")

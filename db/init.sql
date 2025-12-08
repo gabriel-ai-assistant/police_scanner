@@ -90,6 +90,8 @@ CREATE TABLE IF NOT EXISTS bcfy_playlists (
 );
 CREATE INDEX IF NOT EXISTS bcfy_playlists_last_seen_idx  ON bcfy_playlists(last_seen);
 CREATE INDEX IF NOT EXISTS bcfy_playlists_listeners_idx  ON bcfy_playlists(listeners);
+-- Partial index for sync=TRUE queries (faster than full table scan)
+CREATE INDEX IF NOT EXISTS bcfy_playlists_sync_idx ON bcfy_playlists(sync) WHERE sync = TRUE;
 
 CREATE TABLE IF NOT EXISTS bcfy_playlist_poll_log (
     uuid            UUID NOT NULL,
@@ -205,6 +207,44 @@ FOR EACH ROW
 EXECUTE FUNCTION update_timestamp();
 
 COMMENT ON TABLE processing_state IS 'Pipeline state machine tracking for ingestion and NLP stages.';
+
+-- ============================================================
+-- SYSTEM MONITORING
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS system_logs (
+    id              BIGSERIAL PRIMARY KEY,
+    timestamp       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    component       TEXT NOT NULL,  -- 'ingestion', 'audio_worker', etc.
+    event_type      TEXT NOT NULL,  -- 'api_call', 'cycle_complete', 'error'
+    severity        TEXT NOT NULL DEFAULT 'INFO',
+    message         TEXT,
+    metadata        JSONB,
+    duration_ms     INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS system_logs_timestamp_idx ON system_logs(timestamp DESC);
+CREATE INDEX IF NOT EXISTS system_logs_component_idx ON system_logs(component);
+CREATE INDEX IF NOT EXISTS system_logs_event_type_idx ON system_logs(event_type);
+
+-- API call tracking
+CREATE TABLE IF NOT EXISTS api_call_metrics (
+    id              BIGSERIAL PRIMARY KEY,
+    timestamp       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    endpoint        TEXT NOT NULL,
+    method          TEXT DEFAULT 'GET',
+    status_code     INTEGER,
+    duration_ms     INTEGER,
+    response_size   INTEGER,
+    cache_hit       BOOLEAN DEFAULT FALSE,
+    error           TEXT
+);
+
+CREATE INDEX IF NOT EXISTS api_call_metrics_timestamp_idx ON api_call_metrics(timestamp DESC);
+CREATE INDEX IF NOT EXISTS api_call_metrics_endpoint_idx ON api_call_metrics(endpoint);
+
+COMMENT ON TABLE system_logs IS 'System event logs for monitoring and debugging';
+COMMENT ON TABLE api_call_metrics IS 'Tracks all Broadcastify API calls for optimization';
 
 -- ============================================================
 -- END

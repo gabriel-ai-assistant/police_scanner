@@ -5,11 +5,18 @@ Pulls new calls, converts each MP3 → optimized 16-kHz WAV,
 uploads to MinIO, and logs ingestion.
 """
 
-import asyncio, aiohttp, asyncpg, os, json, time, jwt, boto3, logging, subprocess
+import asyncio, aiohttp, asyncpg, os, json, time, jwt, boto3, logging, subprocess, sys
 from botocore.client import Config
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 import librosa, numpy as np
+
+# Import JWT token cache for efficient token reuse
+sys.path.insert(0, '/app/shared_bcfy')
+from token_cache import get_jwt_token
+
+# Import database connection pool
+from db_pool import get_connection, release_connection
 
 # =========================================================
 # Logging
@@ -86,19 +93,59 @@ async def get_db():
     return await asyncpg.connect(DB_URL)
 
 # =========================================================
-# HTTP
+# HTTP (with API call tracking)
 # =========================================================
-async def fetch_json(session, url, token):
-    async with session.get(url, headers={"Authorization": f"Bearer {token}"}) as r:
-        text = await r.text()
-        try:
-            data = json.loads(text)
-        except Exception as e:
-            raise Exception(f"Bad JSON {url}: {e}")
-        log.info(f"HTTP {r.status} ({len(text)} bytes) → {url}")
-        if r.status != 200:
-            raise Exception(f"HTTP {r.status}: {url}")
-        return data
+async def fetch_json(session, url, token, conn=None):
+    """Fetch JSON with optional API call tracking."""
+    start = time.time()
+    status_code = 0
+    error_msg = None
+
+    try:
+        async with session.get(url, headers={"Authorization": f"Bearer {token}"}) as r:
+            text = await r.text()
+            status_code = r.status
+            duration_ms = int((time.time() - start) * 1000)
+
+            # Log to database if connection provided
+            if conn:
+                try:
+                    await conn.execute("""
+                        INSERT INTO api_call_metrics
+                        (endpoint, status_code, duration_ms, response_size)
+                        VALUES ($1, $2, $3, $4)
+                    """, url, status_code, duration_ms, len(text))
+                except:
+                    pass  # Don't fail fetch if logging fails
+
+            log.info(f"HTTP {r.status} ({len(text)} bytes, {duration_ms}ms) → {url}")
+
+            if r.status != 200:
+                raise Exception(f"HTTP {r.status}: {url}")
+
+            try:
+                data = json.loads(text)
+            except Exception as e:
+                raise Exception(f"Bad JSON {url}: {e}")
+
+            return data
+
+    except Exception as e:
+        duration_ms = int((time.time() - start) * 1000)
+        error_msg = str(e)
+
+        # Log failed API call
+        if conn:
+            try:
+                await conn.execute("""
+                    INSERT INTO api_call_metrics
+                    (endpoint, status_code, duration_ms, error)
+                    VALUES ($1, $2, $3, $4)
+                """, url, status_code, duration_ms, error_msg)
+            except:
+                pass
+
+        raise
 
 # =========================================================
 # Audio Analysis + Conversion
@@ -194,6 +241,40 @@ async def insert_call(conn, uuid, call, url):
         call.get("duration", 0), json.dumps(call)
     )
 
+async def quick_insert_call_metadata(conn, uuid, call):
+    """Insert call metadata immediately (no audio processing) - for near real-time ingestion."""
+    call_uid = f"{call['groupId']}-{call['ts']}"
+
+    await conn.execute("""
+        INSERT INTO bcfy_calls_raw (
+            call_uid, group_id, ts, feed_id, tg_id, tag_id, node_id, sid, site_id,
+            freq, src, url, started_at, ended_at, duration_ms, size_bytes,
+            fetched_at, raw_json, processed
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+            TO_TIMESTAMP($13), TO_TIMESTAMP($14), $15, $16, NOW(), $17, FALSE
+        )
+        ON CONFLICT(call_uid) DO NOTHING
+    """,
+        call_uid,
+        call.get("groupId"),
+        call.get("ts"),
+        call.get("feedId"),
+        call.get("tgId"),
+        call.get("tagId"),
+        call.get("nodeId"),
+        call.get("sid"),
+        call.get("siteId"),
+        call.get("freq"),
+        call.get("src"),
+        call.get("url"),  # Original MP3 URL from Broadcastify
+        call.get("start_ts", call.get("ts")),
+        call.get("end_ts", call.get("ts")),
+        int(call.get("duration", 0) * 1000),
+        call.get("size"),
+        json.dumps(call)
+    )
+
 async def poll_start(conn, uuid):
     await conn.execute("INSERT INTO bcfy_playlist_poll_log(uuid,poll_started_at) VALUES($1,NOW());", uuid)
 
@@ -205,6 +286,21 @@ async def poll_end(conn, uuid, ok, notes):
     """, uuid, ok, notes)
 
 # =========================================================
+# Group Fetching Helper (for parallel execution)
+# =========================================================
+async def fetch_group_calls(session, token, conn, gid, start, end):
+    """Fetch calls for a single group (parallelizable)."""
+    url = f"{CALLS_BASE}/group_archives/{gid}/{start}/{end}"
+    try:
+        data = await fetch_json(session, url, token, conn)  # Pass conn for tracking
+        calls = data.get("calls", [])
+        log.info(f"  • {len(calls)} calls from group {gid}")
+        return (gid, calls, None)
+    except Exception as e:
+        log.warning(f"group {gid} err {e}")
+        return (gid, [], str(e))
+
+# =========================================================
 # Playlist Processor
 # =========================================================
 async def process_playlist(conn, session, token, pl):
@@ -213,13 +309,43 @@ async def process_playlist(conn, session, token, pl):
     now = int(time.time())
     row = await conn.fetchrow("SELECT COUNT(*) AS c FROM bcfy_calls_raw;")
     fresh = row["c"] == 0
-    start = int((datetime.now(timezone.utc) - timedelta(days=30)).timestamp()) if fresh else now - 900
+
+    # Use last_seen from playlist data to only fetch NEW calls
+    last_seen_ts = pl.get("last_seen", 0)
+
+    if fresh:
+        # First run: get last 30 days
+        start = int((datetime.now(timezone.utc) - timedelta(days=30)).timestamp())
+    else:
+        # Use last_seen if available, with 15-min buffer for clock skew
+        if last_seen_ts > 0:
+            start = max(last_seen_ts, now - 900)  # Safety buffer
+        else:
+            start = now - 900  # Fallback if no last_seen
+
     end   = now
     await poll_start(conn, uuid)
 
     try:
-        pinfo = await fetch_json(session, f"{CALLS_BASE}/playlist_get/{uuid}", token)
-        groups = pinfo.get("groups", [])
+        # Try database cache first (eliminates API call)
+        groups_json = pl.get("groups_json")
+
+        if groups_json:
+            # Use cached groups from database
+            groups = groups_json if isinstance(groups_json, list) else json.loads(groups_json)
+            log.info(f"Using {len(groups)} cached groups from DB")
+        else:
+            # Fallback: API call (only if groups not in DB)
+            log.warning(f"No cached groups for {uuid}, fetching from API")
+            pinfo = await fetch_json(session, f"{CALLS_BASE}/playlist_get/{uuid}", token, conn)
+            groups = pinfo.get("groups", [])
+
+            # Cache for next time
+            await conn.execute(
+                "UPDATE bcfy_playlists SET groups_json=$1 WHERE uuid=$2",
+                json.dumps(groups), uuid
+            )
+
         if not groups:
             await poll_end(conn, uuid, True, "no groups")
             return
@@ -230,19 +356,35 @@ async def process_playlist(conn, session, token, pl):
         while cur < end:
             chunk_end = min(cur + max_span, end)
             log.info(f"⏱ Chunk {datetime.fromtimestamp(cur, tz=timezone.utc)} → {datetime.fromtimestamp(chunk_end, tz=timezone.utc)}")
-            for g in groups:
-                gid = g["groupId"]
-                url = f"{CALLS_BASE}/group_archives/{gid}/{cur}/{chunk_end}"
-                try:
-                    data = await fetch_json(session, url, token)
-                    calls = data.get("calls", [])
-                    log.info(f"  • {len(calls)} calls from group {gid}")
-                    for c in calls:
-                        s3url = await store_audio(session, c["url"], f"{c['groupId']}-{c['ts']}")
-                        await insert_call(conn, uuid, c, s3url)
-                except Exception as e:
-                    log.warning(f"group {gid} err {e}")
+
+            # Parallelize group fetching for this chunk
+            tasks = [
+                fetch_group_calls(session, token, conn, g["groupId"], cur, chunk_end)
+                for g in groups
+            ]
+
+            # Execute all group fetches in parallel
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            # Process results from all groups
+            for gid, calls, error in results:
+                if error:
+                    log.error(f"Group {gid} failed: {error}")
+                    continue
+
+                log.info(f"Inserting metadata for {len(calls)} calls from group {gid}")
+                for c in calls:
+                    # Fast metadata insert (no audio processing)
+                    await quick_insert_call_metadata(conn, uuid, c)
+
             cur = chunk_end
+
+        # Update last_seen to end of window we just processed (enables incremental polling)
+        await conn.execute(
+            "UPDATE bcfy_playlists SET last_seen=$1 WHERE uuid=$2",
+            end,  # Use the 'end' timestamp
+            uuid
+        )
 
         await poll_end(conn, uuid, True, f"sync window={start}->{end}")
         log.info(f"✅ Finished playlist '{name}'")
@@ -254,19 +396,53 @@ async def process_playlist(conn, session, token, pl):
 # Main Loop
 # =========================================================
 async def ingest_loop():
-    conn = await get_db()
-    async with aiohttp.ClientSession() as s:
-        token = get_jwt()
-        playlists = await conn.fetch(
-            "SELECT uuid,name,COALESCE(last_seen,0) AS last_seen FROM bcfy_playlists WHERE sync=TRUE;"
-        )
-        if not playlists:
-            log.warning("No sync=TRUE playlists")
-            return
-        log.info(f"{len(playlists)} playlist(s) found.")
-        await asyncio.gather(*[process_playlist(conn, s, token, p) for p in playlists])
-    await conn.close()
-    log.info(f"Cycle done; sleeping {COLLECT_INTERVAL_SEC}s")
+    cycle_start = time.time()
+    conn = await get_connection()  # Get from pool
+
+    try:
+        # Log cycle start
+        await conn.execute("""
+            INSERT INTO system_logs (component, event_type, message)
+            VALUES ($1, $2, $3)
+        """, 'ingestion', 'cycle_start', 'Starting ingestion cycle')
+
+        async with aiohttp.ClientSession() as s:
+            token = get_jwt_token()  # Use cached JWT token (1 hour validity, reused)
+            playlists = await conn.fetch(
+                "SELECT uuid,name,COALESCE(last_seen,0) AS last_seen,groups_json FROM bcfy_playlists WHERE sync=TRUE;"
+            )
+            if not playlists:
+                log.warning("No sync=TRUE playlists")
+                return
+
+            log.info(f"{len(playlists)} playlist(s) found.")
+
+            # Get initial call count for metrics
+            initial_count = await conn.fetchval("SELECT COUNT(*) FROM bcfy_calls_raw")
+
+            await asyncio.gather(*[process_playlist(conn, s, token, p) for p in playlists])
+
+            # Get final call count for metrics
+            final_count = await conn.fetchval("SELECT COUNT(*) FROM bcfy_calls_raw")
+            calls_processed = final_count - initial_count
+
+        # Log cycle completion with metrics
+        cycle_duration_ms = int((time.time() - cycle_start) * 1000)
+        await conn.execute("""
+            INSERT INTO system_logs (component, event_type, message, metadata, duration_ms)
+            VALUES ($1, $2, $3, $4, $5)
+        """, 'ingestion', 'cycle_complete',
+             f'Processed {calls_processed} calls in {cycle_duration_ms}ms',
+             json.dumps({
+                 'calls_processed': calls_processed,
+                 'playlists_count': len(playlists),
+                 'cycle_duration_ms': cycle_duration_ms
+             }),
+             cycle_duration_ms)
+
+        log.info(f"Cycle done in {cycle_duration_ms}ms ({calls_processed} new calls); sleeping {COLLECT_INTERVAL_SEC}s")
+    finally:
+        await release_connection(conn)  # Return to pool
 
 # =========================================================
 # Entry

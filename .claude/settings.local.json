@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker-compose ps:*)",
+      "Bash(psql \"postgresql://scan:DuL7tZ6yKKbRmP*BWkc*JgtQi_.siE.iKiK2qskATMpKuFjAoNJhWvsCf*@police-scanner.cilycke4i4nz.us-east-1.rds.amazonaws.com:5432/scanner\" -f db/init.sql)",
+      "Bash(bash:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

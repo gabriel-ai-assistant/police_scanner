@@ -9,10 +9,13 @@ Runs:
 import os
 import subprocess
 import logging
+import asyncio
 from datetime import datetime
 from apscheduler.schedulers.blocking import BlockingScheduler
 from dotenv import load_dotenv
 from get_cache_common_data import refresh_common
+from get_calls import ingest_loop
+from audio_worker import process_pending_audio
 
 # -----------------------------------------------------------------
 # Setup
@@ -37,15 +40,26 @@ def job_refresh_common():
         log.exception(f"❌ refresh_common() failed: {e}")
 
 # -----------------------------------------------------------------
-# Task: Run ingestion (get_calls.py)
+# Task: Run ingestion (get_calls.py) - direct async call (no subprocess)
 # -----------------------------------------------------------------
 def job_run_ingest():
-    log.info(f"🕒 Triggering Broadcastify call ingestion at {datetime.now()}")
+    """Run ingestion directly (no subprocess overhead)."""
+    log.info(f"🕒 Running ingestion at {datetime.now()}")
     try:
-        subprocess.run(["python", "get_calls.py"], check=True)
-        log.info("✅ Ingestion run completed successfully.")
-    except subprocess.CalledProcessError as e:
-        log.error(f"❌ Ingestion run failed: {e}")
+        asyncio.run(ingest_loop())
+        log.info("✅ Ingestion completed.")
+    except Exception as e:
+        log.error(f"❌ Ingestion failed: {e}")
+
+# -----------------------------------------------------------------
+# Task: Process audio files
+# -----------------------------------------------------------------
+def job_process_audio():
+    """Process pending audio files in background."""
+    try:
+        asyncio.run(process_pending_audio())
+    except Exception as e:
+        log.error(f"❌ Audio processing failed: {e}")
 
 # -----------------------------------------------------------------
 # Scheduler Setup
@@ -58,6 +72,14 @@ def main():
 
     # Ingest calls every 10 seconds
     sched.add_job(job_run_ingest, "interval", seconds=10, id="run_ingest")
+
+    # Process audio files every 5 seconds (independent worker)
+    sched.add_job(
+        job_process_audio,
+        "interval",
+        seconds=int(os.getenv("AUDIO_WORKER_INTERVAL_SEC", "5")),
+        id="audio_worker"
+    )
 
     log.info("📅 Scheduler started — ingestion every 10 s, common refresh every 24 h")
     try:

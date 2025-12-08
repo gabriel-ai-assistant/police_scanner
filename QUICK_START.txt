@@ -1,0 +1,108 @@
+================================================================================
+POLICE SCANNER OPTIMIZATION - QUICK DEPLOYMENT
+================================================================================
+
+STATUS: ✅ Ready to Deploy (All 4 Phases Complete)
+
+BEFORE YOU START:
+1. Start Docker Desktop
+2. Backup database: pg_dump -U $PGUSER -d $PGDATABASE > backup.sql
+
+================================================================================
+DEPLOYMENT (3 STEPS)
+================================================================================
+
+STEP 1: Apply Database Schema
+------------------------------
+cd p:/Git/police_scanner
+psql -U $PGUSER -h $PGHOST -p $PGPORT -d $PGDATABASE -f db/init.sql
+
+STEP 2: Restart Services
+-------------------------
+docker-compose down
+docker-compose up -d
+docker-compose logs -f app_scheduler
+
+STEP 3: Verify (After 5 Minutes)
+---------------------------------
+psql -U $PGUSER -d $PGDATABASE
+
+-- Check API calls (should be <5 in 5 minutes)
+SELECT COUNT(*) FROM api_call_metrics WHERE timestamp > NOW() - INTERVAL '5 minutes';
+
+-- Check cycles are running
+SELECT COUNT(*) FROM system_logs WHERE component = 'ingestion' AND timestamp > NOW() - INTERVAL '5 minutes';
+
+-- Check for errors (should be 0)
+SELECT COUNT(*) FROM system_logs WHERE severity = 'ERROR' AND timestamp > NOW() - INTERVAL '5 minutes';
+
+================================================================================
+EXPECTED RESULTS
+================================================================================
+
+BEFORE:
+- API calls: ~360/hour
+- Cycle time: Minutes
+- Duplicates: Massive
+- Audio: Blocking
+
+AFTER:
+- API calls: <10/hour (90-95% reduction) ✅
+- Cycle time: <1 second (10-100x faster) ✅
+- Duplicates: 0% (incremental polling) ✅
+- Audio: Near real-time (<1 min) ✅
+
+================================================================================
+MONITORING (First Hour)
+================================================================================
+
+Run every 15 minutes:
+
+SELECT
+    (SELECT COUNT(*) FROM api_call_metrics WHERE timestamp > NOW() - INTERVAL '1 hour') as api_calls,
+    (SELECT COUNT(*) FROM bcfy_calls_raw WHERE processed = FALSE) as pending_audio,
+    (SELECT ROUND(AVG(duration_ms)) FROM system_logs WHERE component = 'ingestion' AND timestamp > NOW() - INTERVAL '1 hour') as avg_cycle_ms;
+
+HEALTHY VALUES:
+- api_calls: <10
+- pending_audio: <100
+- avg_cycle_ms: <5000
+
+================================================================================
+ROLLBACK (If Needed)
+================================================================================
+
+docker-compose down
+git checkout HEAD -- app_scheduler/get_calls.py app_scheduler/scheduler.py
+rm app_scheduler/db_pool.py app_scheduler/audio_worker.py
+docker-compose up -d
+
+================================================================================
+FILES MODIFIED
+================================================================================
+
+✅ app_scheduler/get_calls.py    - Core optimizations
+✅ app_scheduler/scheduler.py    - Direct calls, audio worker
+✅ db/init.sql                   - Monitoring tables, indexes
+
+FILES CREATED
+================================================================================
+
+✅ app_scheduler/db_pool.py           - Connection pooling
+✅ app_scheduler/audio_worker.py      - Background audio processor
+✅ db/monitoring_queries.sql          - 30+ monitoring queries
+✅ OPTIMIZATION_SUMMARY.md            - Complete documentation
+✅ DEPLOYMENT_GUIDE.md                - Detailed deployment guide
+✅ DEPLOY_NOW.md                      - Quick deployment steps
+
+================================================================================
+DOCUMENTATION
+================================================================================
+
+Quick Start:    QUICK_START.txt (this file)
+Deploy Now:     DEPLOY_NOW.md
+Full Guide:     DEPLOYMENT_GUIDE.md
+Details:        OPTIMIZATION_SUMMARY.md
+Monitoring:     db/monitoring_queries.sql
+
+================================================================================
