@@ -1,10 +1,12 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 from datetime import datetime
 
 
 class TranscriptBase(BaseModel):
     """Base transcript model."""
+    model_config = ConfigDict(protected_namespaces=())
+
     call_uid: str
     text: Optional[str] = None
     confidence: Optional[float] = None

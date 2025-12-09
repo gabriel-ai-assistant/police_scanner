@@ -215,9 +215,16 @@ async def store_audio(session, src_url, call_uid):
         with open(mp3_path, "wb") as f:
             f.write(await r.read())
 
-    wav_path = convert_to_wav(mp3_path)
-    s3_key = f"{MINIO_BUCKET_PATH}/{os.path.basename(wav_path)}"
-    s3.upload_file(wav_path, MINIO_BUCKET, s3_key)
+    try:
+        loop = asyncio.get_running_loop()
+        wav_path = await loop.run_in_executor(None, convert_to_wav, mp3_path)
+        s3_key = f"{MINIO_BUCKET_PATH}/{os.path.basename(wav_path)}"
+        await loop.run_in_executor(None, s3.upload_file, wav_path, MINIO_BUCKET, s3_key)
+    except RuntimeError:
+        # No running event loop, use blocking calls
+        wav_path = convert_to_wav(mp3_path)
+        s3_key = f"{MINIO_BUCKET_PATH}/{os.path.basename(wav_path)}"
+        s3.upload_file(wav_path, MINIO_BUCKET, s3_key)
     log.info(f"☁️ Uploaded → s3://{MINIO_BUCKET}/{s3_key}")
     os.remove(wav_path)
     return f"s3://{MINIO_BUCKET}/{s3_key}"

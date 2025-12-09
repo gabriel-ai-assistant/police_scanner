@@ -11,7 +11,7 @@ import subprocess
 import logging
 import asyncio
 from datetime import datetime
-from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from dotenv import load_dotenv
 from get_cache_common_data import refresh_common
 from get_calls import ingest_loop
@@ -31,7 +31,7 @@ log = logging.getLogger("scheduler")
 # -----------------------------------------------------------------
 # Task: Refresh common Broadcastify data
 # -----------------------------------------------------------------
-def job_refresh_common():
+async def job_refresh_common():
     log.info("🚀 Running job_refresh_common() ...")
     try:
         refresh_common()
@@ -42,11 +42,11 @@ def job_refresh_common():
 # -----------------------------------------------------------------
 # Task: Run ingestion (get_calls.py) - direct async call (no subprocess)
 # -----------------------------------------------------------------
-def job_run_ingest():
+async def job_run_ingest():
     """Run ingestion directly (no subprocess overhead)."""
     log.info(f"🕒 Running ingestion at {datetime.now()}")
     try:
-        asyncio.run(ingest_loop())
+        await ingest_loop()
         log.info("✅ Ingestion completed.")
     except Exception as e:
         log.error(f"❌ Ingestion failed: {e}")
@@ -54,39 +54,44 @@ def job_run_ingest():
 # -----------------------------------------------------------------
 # Task: Process audio files
 # -----------------------------------------------------------------
-def job_process_audio():
+async def job_process_audio():
     """Process pending audio files in background."""
     try:
-        asyncio.run(process_pending_audio())
+        await process_pending_audio()
     except Exception as e:
         log.error(f"❌ Audio processing failed: {e}")
 
 # -----------------------------------------------------------------
 # Scheduler Setup
 # -----------------------------------------------------------------
-def main():
-    sched = BlockingScheduler()
+async def main():
+    sched = AsyncIOScheduler()
 
     # Daily refresh of cached metadata
     sched.add_job(job_refresh_common, "interval", hours=24, id="refresh_common")
 
-    # Ingest calls every 10 seconds
-    sched.add_job(job_run_ingest, "interval", seconds=10, id="run_ingest")
+    # Ingest calls every 10 seconds (with concurrency control)
+    sched.add_job(job_run_ingest, "interval", seconds=10, id="run_ingest",
+                  max_instances=1, coalesce=True)
 
-    # Process audio files every 5 seconds (independent worker)
+    # Process audio files every 5 seconds (independent worker, with concurrency control)
     sched.add_job(
         job_process_audio,
         "interval",
         seconds=int(os.getenv("AUDIO_WORKER_INTERVAL_SEC", "5")),
-        id="audio_worker"
+        id="audio_worker",
+        max_instances=1,
+        coalesce=True
     )
 
     log.info("📅 Scheduler started — ingestion every 10 s, common refresh every 24 h")
     try:
         sched.start()
+        while True:
+            await asyncio.sleep(1)
     except (KeyboardInterrupt, SystemExit):
         log.warning("🛑 Scheduler stopped manually.")
 
 # -----------------------------------------------------------------
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
