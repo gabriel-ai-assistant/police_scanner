@@ -3,8 +3,8 @@ from typing import List, Optional
 import asyncpg
 import uuid as uuid_lib
 
-from ..database import get_pool
-from ..models.playlists import Playlist, PlaylistUpdate, PlaylistStats
+from database import get_pool
+from models.playlists import Playlist, PlaylistUpdate, PlaylistStats
 
 router = APIRouter()
 

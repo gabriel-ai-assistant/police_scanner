@@ -3,8 +3,8 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 import asyncpg
 
-from ..database import get_pool
-from ..models.calls import CallMetadata, HourlyStats, FeedStats
+from database import get_pool
+from models.calls import CallMetadata, HourlyStats, FeedStats
 
 router = APIRouter()
 

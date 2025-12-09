@@ -3,9 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 
-from .config import settings
-from .database import get_pool, close_pool
-from .routers import health, calls, playlists, transcripts, analytics, geography, system
+from config import settings
+from database import get_pool, close_pool
+from routers import health, calls, playlists, transcripts, analytics, geography, system
 
 
 # Configure logging

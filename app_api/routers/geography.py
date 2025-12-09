@@ -2,8 +2,8 @@ from fastapi import APIRouter, Query, Depends, HTTPException
 from typing import List, Optional
 import asyncpg
 
-from ..database import get_pool
-from ..models.geography import (
+from database import get_pool
+from models.geography import (
     Country, State, County, CountrySyncUpdate,
     StateSyncUpdate, CountySyncUpdate
 )

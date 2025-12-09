@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends
 from datetime import datetime
 import asyncpg
 
-from ..database import get_pool
-from ..models.system import HealthStatus
+from database import get_pool
+from models.system import HealthStatus
 
 router = APIRouter()
 

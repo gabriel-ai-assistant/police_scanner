@@ -2,10 +2,11 @@ from fastapi import APIRouter, Query, Depends
 from typing import List, Optional
 import asyncpg
 
-from ..database import get_pool
-from ..models.system import (
-    SystemLog, ProcessingStateSummary, ApiMetricsSummary
+from database import get_pool
+from models.system import (
+    SystemLog, ProcessingStateSummary
 )
+from models.analytics import ApiMetricsSummary
 
 router = APIRouter()
 

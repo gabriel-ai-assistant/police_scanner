@@ -1,4 +1,9 @@
 import time
+import sys
+import os
+
+# Add shared_bcfy to path if running as standalone
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from auth import generate_jwt
 
 _cached_token = None

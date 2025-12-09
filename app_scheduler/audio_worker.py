@@ -61,14 +61,19 @@ async def process_pending_audio():
                     log.info(f"✓ Processed {call_uid}")
 
                 except Exception as e:
+                    # Extract clean error message without S3 paths or operational artifacts
+                    error_msg = str(e).split('s3://')[0] if 's3://' in str(e) else str(e)
+                    error_type = type(e).__name__
+                    clean_error = f"{error_type}: {error_msg.strip()}"[:500]
+
                     # Mark error for retry later
                     await conn.execute("""
                         UPDATE bcfy_calls_raw
                         SET error = $1, last_attempt = NOW()
                         WHERE call_uid = $2
-                    """, str(e)[:500], call_uid)  # Truncate long errors
+                    """, clean_error, call_uid)
 
-                    log.error(f"✗ Failed {call_uid}: {e}")
+                    log.error(f"✗ Failed {call_uid}: {clean_error}")
 
     finally:
         await release_connection(conn)

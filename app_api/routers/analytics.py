@@ -3,12 +3,12 @@ from typing import List, Dict, Any
 from datetime import datetime, timedelta
 import asyncpg
 
-from ..database import get_pool
-from ..models.analytics import (
+from database import get_pool
+from models.analytics import (
     KeywordHit, HourlyPoint, TalkgroupHit, DashboardMetrics,
     QualityDistribution, ApiMetricsSummary
 )
-from ..models.calls import CallMetadata
+from models.calls import CallMetadata
 
 router = APIRouter()
 

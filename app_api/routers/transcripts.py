@@ -2,8 +2,8 @@ from fastapi import APIRouter, Query, Depends, HTTPException
 from typing import List, Optional
 import asyncpg
 
-from ..database import get_pool
-from ..models.transcripts import Transcript, TranscriptSearchResult
+from database import get_pool
+from models.transcripts import Transcript, TranscriptSearchResult
 
 router = APIRouter()
 
