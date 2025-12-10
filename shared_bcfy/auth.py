@@ -23,5 +23,7 @@ def generate_jwt() -> str:
     sig = hmac.new(api_key.encode(), signing_input, hashlib.sha256).digest()
     jwt_token = f"{enc_header}.{enc_payload}.{_b64url_encode(sig)}"
 
-    logging.debug("Generated new Broadcastify JWT")
+    # Debug logging
+    logging.debug(f"Generated new JWT: {jwt_token[:50]}...")
+    logging.debug(f"API Key ID: {api_key_id}, App ID: {app_id}, IAT: {iat}, EXP: {exp}")
     return jwt_token

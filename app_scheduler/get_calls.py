@@ -5,7 +5,7 @@ Pulls new calls, converts each MP3 → optimized 16-kHz WAV,
 uploads to MinIO, and logs ingestion.
 """
 
-import asyncio, aiohttp, asyncpg, os, json, time, jwt, boto3, logging, subprocess, sys
+import asyncio, aiohttp, asyncpg, os, json, time, boto3, logging, subprocess, sys
 from botocore.client import Config
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
@@ -59,17 +59,6 @@ os.makedirs(TEMP_DIR, exist_ok=True)
 log.info(f"Temp audio directory: {TEMP_DIR}")
 
 # =========================================================
-# JWT
-# =========================================================
-def get_jwt():
-    key_id = os.getenv("BCFY_API_KEY_ID")
-    key    = os.getenv("BCFY_API_KEY")
-    app_id = os.getenv("BCFY_APP_ID")
-    header  = {"alg": "HS256", "typ": "JWT", "kid": key_id}
-    payload = {"iss": app_id, "iat": int(time.time()), "exp": int(time.time()) + 3600}
-    return jwt.encode(payload, key, algorithm="HS256", headers=header)
-
-# =========================================================
 # MinIO Client
 # =========================================================
 log.info(f"Connecting to MinIO endpoint: {MINIO_ENDPOINT}")
@@ -102,6 +91,9 @@ async def fetch_json(session, url, token, conn=None, params=None):
     error_msg = None
 
     try:
+        # Debug logging for JWT token
+        log.debug(f"Using JWT token: {token[:50]}...")
+        log.debug(f"Making request to: {url} with params: {params}")
         async with session.get(url, headers={"Authorization": f"Bearer {token}"}, params=params) as r:
             text = await r.text()
             status_code = r.status
@@ -268,13 +260,13 @@ async def quick_insert_call_metadata(conn, uuid, call):
         call.get("ts"),
         call.get("feedId"),
         call.get("tgId"),
-        call.get("tagId"),
+        call.get("tag"),
         call.get("nodeId"),
         call.get("sid"),
         call.get("siteId"),
         call.get("freq"),
         call.get("src"),
-        call.get("url"),  # Original MP3 URL from Broadcastify
+        call.get("url"),  # Original M4A URL from Broadcastify (converted to WAV)
         call.get("start_ts", call.get("ts")),
         call.get("end_ts", call.get("ts")),
         int(call.get("duration", 0) * 1000),
@@ -309,7 +301,8 @@ async def fetch_live_calls(session, token, conn, playlist_uuid, last_pos=None):
         dict with 'calls' list and 'lastPos' timestamp
     """
     url = f"{CALLS_BASE}/live/"
-    params = {"playlist_uuid": playlist_uuid}
+    # Convert UUID to string in case it comes from database as UUID object
+    params = {"playlist_uuid": str(playlist_uuid)}
 
     if last_pos and last_pos > 0:
         params["pos"] = int(last_pos)  # Incremental: only new calls

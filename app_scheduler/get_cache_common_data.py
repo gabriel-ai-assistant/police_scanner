@@ -42,8 +42,9 @@ def build_jwt():
     def b64url(data: bytes) -> str:
         return base64.urlsafe_b64encode(data).decode().rstrip("=")
 
-    header_b64 = b64url(json.dumps(header).encode())
-    payload_b64 = b64url(json.dumps(payload).encode())
+    # Use compact JSON format (no spaces) to match Postman/JavaScript encoding
+    header_b64 = b64url(json.dumps(header, separators=(",", ":")).encode())
+    payload_b64 = b64url(json.dumps(payload, separators=(",", ":")).encode())
     token_data = f"{header_b64}.{payload_b64}"
 
     logging.debug(f"Header B64: {header_b64}")
