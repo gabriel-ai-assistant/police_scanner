@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 from get_cache_common_data import refresh_common
 from get_calls import ingest_loop
 from audio_worker import process_pending_audio
+from transcription_dispatcher import dispatch_transcription_tasks
 
 # -----------------------------------------------------------------
 # Setup
@@ -62,6 +63,18 @@ async def job_process_audio():
         log.error(f"❌ Audio processing failed: {e}")
 
 # -----------------------------------------------------------------
+# Task: Dispatch transcription tasks to Celery
+# -----------------------------------------------------------------
+async def job_dispatch_transcriptions():
+    """Queue pending transcription tasks to Celery workers."""
+    try:
+        count = await dispatch_transcription_tasks()
+        if count > 0:
+            log.info(f"📝 Dispatched {count} transcription tasks")
+    except Exception as e:
+        log.error(f"❌ Transcription dispatch failed: {e}")
+
+# -----------------------------------------------------------------
 # Scheduler Setup
 # -----------------------------------------------------------------
 async def main():
@@ -84,7 +97,17 @@ async def main():
         coalesce=True
     )
 
-    log.info("📅 Scheduler started — ingestion every 10 s, common refresh every 24 h")
+    # Dispatch transcription tasks every 30 seconds
+    sched.add_job(
+        job_dispatch_transcriptions,
+        "interval",
+        seconds=int(os.getenv("TRANSCRIPTION_DISPATCH_INTERVAL_SEC", "30")),
+        id="transcription_dispatcher",
+        max_instances=1,
+        coalesce=True
+    )
+
+    log.info("📅 Scheduler started — ingestion every 10 s, audio every 5 s, transcription every 30 s")
     try:
         sched.start()
         while True:
