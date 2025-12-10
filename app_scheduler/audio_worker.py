@@ -37,9 +37,9 @@ async def process_pending_audio():
     """Process calls with processed=FALSE, with retry logic and feature flag support."""
     conn = await get_connection()
     try:
-        # Get unprocessed calls (oldest first)
+        # Get unprocessed calls with metadata for hierarchical S3 paths (oldest first)
         calls = await conn.fetch("""
-            SELECT call_uid, url, raw_json
+            SELECT call_uid, url, raw_json, playlist_uuid, started_at, tg_id, duration_ms, feed_id
             FROM bcfy_calls_raw
             WHERE processed = FALSE AND error IS NULL
             ORDER BY fetched_at ASC
@@ -58,21 +58,30 @@ async def process_pending_audio():
                 call_uid = call['call_uid']
                 src_url = call['url']
 
+                # Build call_metadata for hierarchical S3 paths
+                call_metadata = {
+                    'playlist_uuid': call['playlist_uuid'],
+                    'started_at': call['started_at'],
+                    'tg_id': call['tg_id'],
+                    'duration_ms': call['duration_ms'],
+                    'feed_id': call['feed_id']
+                }
+
                 # Attempt processing with retries
                 success = False
                 last_error = None
 
                 for attempt in range(MAX_RETRIES + 1):
                     try:
-                        # Download, convert, upload
-                        s3_url = await store_audio(session, src_url, call_uid)
+                        # Download, convert, upload with hierarchical path
+                        s3_key, s3_uri = await store_audio(session, src_url, call_uid, call_metadata)
 
-                        # Update with S3 location
+                        # Update with S3 location and new hierarchical key
                         await conn.execute("""
                             UPDATE bcfy_calls_raw
-                            SET url = $1, processed = TRUE, last_attempt = NOW()
-                            WHERE call_uid = $2
-                        """, s3_url, call_uid)
+                            SET url = $1, s3_key_v2 = $2, processed = TRUE, last_attempt = NOW()
+                            WHERE call_uid = $3
+                        """, s3_uri, s3_key, call_uid)
 
                         log.info(f"✓ Processed {call_uid} "
                                 f"(attempt {attempt + 1}/{MAX_RETRIES + 1})")

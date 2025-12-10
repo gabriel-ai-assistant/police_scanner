@@ -438,9 +438,84 @@ def convert_to_wav(input_path, timeout_sec=None):
         raise Exception(f"FFmpeg error: {stderr}")
 
 # =========================================================
-# Audio Storage
+# Audio Storage (Hierarchical S3 Key Structure)
 # =========================================================
-async def store_audio(session, src_url, call_uid):
+def _build_hierarchical_s3_key(call_uid, playlist_uuid, started_at):
+    """Build hierarchical S3 key for time-partitioned storage.
+
+    Format: calls/playlist_id={UUID}/year={YYYY}/month={MM}/day={DD}/hour={HH}/call_{call_uid}.wav
+
+    Args:
+        call_uid: Unique call identifier (e.g., "12345-1702500000")
+        playlist_uuid: Playlist UUID for partitioning
+        started_at: datetime object for time partitioning
+
+    Returns:
+        S3 key string (without bucket prefix)
+    """
+    return (
+        f"{MINIO_BUCKET_PATH}/"
+        f"playlist_id={playlist_uuid}/"
+        f"year={started_at.year}/"
+        f"month={started_at.month:02d}/"
+        f"day={started_at.day:02d}/"
+        f"hour={started_at.hour:02d}/"
+        f"call_{call_uid}.wav"
+    )
+
+
+def _build_s3_metadata(call_uid, call_metadata):
+    """Build S3 user metadata dict for object tagging.
+
+    Args:
+        call_uid: Unique call identifier
+        call_metadata: dict with playlist_uuid, started_at, tg_id, duration_ms, feed_id
+
+    Returns:
+        Dict of string key-value pairs for S3 Metadata
+    """
+    started_at = call_metadata.get('started_at')
+    timestamp_utc = started_at.isoformat() + "Z" if started_at else ""
+
+    return {
+        "playlist_id": str(call_metadata.get('playlist_uuid', '')),
+        "timestamp_utc": timestamp_utc,
+        "call_id": str(call_uid),
+        "talkgroup": str(call_metadata.get('tg_id', '')),
+        "duration_ms": str(call_metadata.get('duration_ms', 0)),
+        "codec": "pcm_s16le",
+        "source_feed": str(call_metadata.get('feed_id', ''))
+    }
+
+
+def _upload_with_metadata(local_path, bucket, s3_key, metadata):
+    """Upload file to S3 with metadata and content type."""
+    s3.upload_file(
+        local_path,
+        bucket,
+        s3_key,
+        ExtraArgs={
+            'Metadata': metadata,
+            'ContentType': 'audio/wav'
+        }
+    )
+
+
+async def store_audio(session, src_url, call_uid, call_metadata=None):
+    """Download, convert, and upload audio with hierarchical S3 key structure.
+
+    Args:
+        session: aiohttp session for downloading
+        src_url: Source URL of audio file (M4A/MP3)
+        call_uid: Unique call identifier
+        call_metadata: Optional dict with playlist_uuid, started_at, tg_id, duration_ms, feed_id
+                       If None, falls back to legacy flat key structure
+
+    Returns:
+        Tuple of (s3_key, s3_uri) where:
+          - s3_key: Object key for database storage
+          - s3_uri: Full S3 URI for logging
+    """
     mp3_path = os.path.join(TEMP_DIR, f"{call_uid}.mp3")
     async with session.get(src_url) as r:
         if r.status != 200:
@@ -451,16 +526,49 @@ async def store_audio(session, src_url, call_uid):
     try:
         loop = asyncio.get_running_loop()
         wav_path = await loop.run_in_executor(None, convert_to_wav, mp3_path)
-        s3_key = f"{MINIO_BUCKET_PATH}/{os.path.basename(wav_path)}"
-        await loop.run_in_executor(None, s3.upload_file, wav_path, MINIO_BUCKET, s3_key)
+
+        # Build S3 key based on whether metadata is available
+        if call_metadata and call_metadata.get('playlist_uuid') and call_metadata.get('started_at'):
+            # New hierarchical structure
+            s3_key = _build_hierarchical_s3_key(
+                call_uid,
+                call_metadata['playlist_uuid'],
+                call_metadata['started_at']
+            )
+            s3_metadata = _build_s3_metadata(call_uid, call_metadata)
+            await loop.run_in_executor(
+                None,
+                _upload_with_metadata,
+                wav_path, MINIO_BUCKET, s3_key, s3_metadata
+            )
+            log.info(f"☁️ Uploaded (hierarchical) → s3://{MINIO_BUCKET}/{s3_key}")
+        else:
+            # Legacy flat structure (backward compatibility)
+            s3_key = f"{MINIO_BUCKET_PATH}/{os.path.basename(wav_path)}"
+            await loop.run_in_executor(None, s3.upload_file, wav_path, MINIO_BUCKET, s3_key)
+            log.info(f"☁️ Uploaded (legacy) → s3://{MINIO_BUCKET}/{s3_key}")
+
     except RuntimeError:
         # No running event loop, use blocking calls
         wav_path = convert_to_wav(mp3_path)
-        s3_key = f"{MINIO_BUCKET_PATH}/{os.path.basename(wav_path)}"
-        s3.upload_file(wav_path, MINIO_BUCKET, s3_key)
-    log.info(f"☁️ Uploaded → s3://{MINIO_BUCKET}/{s3_key}")
+
+        if call_metadata and call_metadata.get('playlist_uuid') and call_metadata.get('started_at'):
+            s3_key = _build_hierarchical_s3_key(
+                call_uid,
+                call_metadata['playlist_uuid'],
+                call_metadata['started_at']
+            )
+            s3_metadata = _build_s3_metadata(call_uid, call_metadata)
+            _upload_with_metadata(wav_path, MINIO_BUCKET, s3_key, s3_metadata)
+            log.info(f"☁️ Uploaded (hierarchical) → s3://{MINIO_BUCKET}/{s3_key}")
+        else:
+            s3_key = f"{MINIO_BUCKET_PATH}/{os.path.basename(wav_path)}"
+            s3.upload_file(wav_path, MINIO_BUCKET, s3_key)
+            log.info(f"☁️ Uploaded (legacy) → s3://{MINIO_BUCKET}/{s3_key}")
+
     os.remove(wav_path)
-    return f"s3://{MINIO_BUCKET}/{s3_key}"
+    s3_uri = f"s3://{MINIO_BUCKET}/{s3_key}"
+    return s3_key, s3_uri
 
 # =========================================================
 # Inserts + Poll Logging
@@ -481,18 +589,24 @@ async def insert_call(conn, uuid, call, url):
         call.get("duration", 0), json.dumps(call)
     )
 
-async def quick_insert_call_metadata(conn, uuid, call):
-    """Insert call metadata immediately (no audio processing) - for near real-time ingestion."""
+async def quick_insert_call_metadata(conn, playlist_uuid, call):
+    """Insert call metadata immediately (no audio processing) - for near real-time ingestion.
+
+    Args:
+        conn: Database connection
+        playlist_uuid: UUID of the playlist (stored for hierarchical S3 path construction)
+        call: Call metadata dict from Broadcastify API
+    """
     call_uid = f"{call['groupId']}-{call['ts']}"
 
     await conn.execute("""
         INSERT INTO bcfy_calls_raw (
             call_uid, group_id, ts, feed_id, tg_id, tag_id, node_id, sid, site_id,
             freq, src, url, started_at, ended_at, duration_ms, size_bytes,
-            fetched_at, raw_json, processed
+            fetched_at, raw_json, processed, playlist_uuid
         ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-            TO_TIMESTAMP($13), TO_TIMESTAMP($14), $15, $16, NOW(), $17, FALSE
+            TO_TIMESTAMP($13), TO_TIMESTAMP($14), $15, $16, NOW(), $17, FALSE, $18
         )
         ON CONFLICT(call_uid) DO NOTHING
     """,
@@ -512,7 +626,8 @@ async def quick_insert_call_metadata(conn, uuid, call):
         call.get("end_ts", call.get("ts")),
         int(call.get("duration", 0) * 1000),
         call.get("size"),
-        json.dumps(call)
+        json.dumps(call),
+        playlist_uuid  # Store playlist UUID for hierarchical S3 path construction
     )
 
 async def poll_start(conn, uuid):
@@ -555,42 +670,61 @@ async def fetch_live_calls(session, token, conn, playlist_uuid, last_pos=None):
 # =========================================================
 # Playlist Processor
 # =========================================================
-async def process_playlist(conn, session, token, pl):
+async def process_playlist(session, token, pl):
+    """Process a single playlist with its own database connection.
+
+    Each playlist processor acquires its own connection from the pool to allow
+    true parallel processing without connection conflicts.
+    """
     uuid, name = pl["uuid"], pl["name"]
     log.info(f"▶️ Playlist '{name}' ({uuid})")
 
     # Get last position from database (stores lastPos from previous API response)
     last_pos = pl.get("last_pos", 0)
 
-    await poll_start(conn, uuid)
-
+    # Acquire own connection from pool for this playlist
+    conn = await get_connection()
     try:
-        # Single API call for entire playlist (replaces all group calls + chunking)
-        data = await fetch_live_calls(session, token, conn, uuid, last_pos)
+        # Wrap poll_start in its own try/except for failure isolation
+        try:
+            await poll_start(conn, uuid)
+        except Exception as e:
+            log.error(f"❌ poll_start failed for '{name}': {e}")
+            return  # Skip this playlist, don't halt others
 
-        calls = data.get("calls", [])
-        new_last_pos = data.get("lastPos")  # Unix timestamp from API
+        try:
+            # Single API call for entire playlist (replaces all group calls + chunking)
+            data = await fetch_live_calls(session, token, conn, uuid, last_pos)
 
-        log.info(f"Received {len(calls)} calls (lastPos: {new_last_pos})")
+            calls = data.get("calls", [])
+            new_last_pos = data.get("lastPos")  # Unix timestamp from API
 
-        # Insert metadata for all calls
-        for call in calls:
-            await quick_insert_call_metadata(conn, uuid, call)
+            log.info(f"Received {len(calls)} calls (lastPos: {new_last_pos})")
 
-        # Update last_pos for next poll (critical for incremental polling)
-        if new_last_pos:
-            await conn.execute(
-                "UPDATE bcfy_playlists SET last_pos=$1 WHERE uuid=$2",
-                new_last_pos,
-                uuid
-            )
+            # Insert metadata for all calls
+            for call in calls:
+                await quick_insert_call_metadata(conn, uuid, call)
 
-        await poll_end(conn, uuid, True, f"Processed {len(calls)} calls, lastPos={new_last_pos}")
-        log.info(f"✅ Finished playlist '{name}'")
+            # Update last_pos for next poll (critical for incremental polling)
+            if new_last_pos:
+                await conn.execute(
+                    "UPDATE bcfy_playlists SET last_pos=$1 WHERE uuid=$2",
+                    new_last_pos,
+                    uuid
+                )
 
-    except Exception as e:
-        await poll_end(conn, uuid, False, str(e))
-        log.error(f"❌ Playlist '{name}' failed: {e}")
+            await poll_end(conn, uuid, True, f"Processed {len(calls)} calls, lastPos={new_last_pos}")
+            log.info(f"✅ Finished playlist '{name}'")
+
+        except Exception as e:
+            log.error(f"❌ Playlist '{name}' failed: {e}")
+            # Wrap poll_end in try/except to prevent exception in exception handler
+            try:
+                await poll_end(conn, uuid, False, str(e))
+            except Exception as poll_err:
+                log.error(f"❌ poll_end also failed for '{name}': {poll_err}")
+    finally:
+        await release_connection(conn)
 
 # =========================================================
 # Main Loop
@@ -620,7 +754,18 @@ async def ingest_loop():
             # Get initial call count for metrics
             initial_count = await conn.fetchval("SELECT COUNT(*) FROM bcfy_calls_raw")
 
-            await asyncio.gather(*[process_playlist(conn, s, token, p) for p in playlists])
+            # Process all playlists in parallel with failure isolation
+            # Each playlist acquires its own connection from the pool
+            # return_exceptions=True ensures one playlist failure doesn't halt others
+            results = await asyncio.gather(
+                *[process_playlist(s, token, p) for p in playlists],
+                return_exceptions=True
+            )
+
+            # Log any unexpected exceptions that escaped process_playlist's error handling
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    log.error(f"Unexpected exception in playlist {playlists[i]['name']}: {result}")
 
             # Get final call count for metrics
             final_count = await conn.fetchval("SELECT COUNT(*) FROM bcfy_calls_raw")

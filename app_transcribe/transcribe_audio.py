@@ -1,6 +1,11 @@
-import os, psycopg2, boto3, tempfile
+import os, psycopg2, boto3, tempfile, re, logging
 from faster_whisper import WhisperModel
 from datetime import datetime
+from botocore.exceptions import ClientError
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+log = logging.getLogger(__name__)
 
 DB = {
     "host": os.getenv("DB_HOST", "db"),
@@ -10,8 +15,61 @@ DB = {
     "password": "scanner",
 }
 
+BUCKET_PATH = os.getenv("AUDIO_BUCKET_PATH", "calls")
 model = WhisperModel("medium", device="cuda", compute_type="float16")
 s3 = boto3.client("s3")
+
+
+def _extract_call_uid_from_key(s3_key: str) -> str:
+    """Extract call_uid from S3 key (works for both hierarchical and flat paths).
+
+    Hierarchical: calls/playlist_id=.../year=.../call_{call_uid}.wav -> {call_uid}
+    Flat: calls/{call_uid}.wav -> {call_uid}
+    """
+    # Try to extract from hierarchical path (call_{call_uid}.wav)
+    match = re.search(r'call_([^/]+)\.wav$', s3_key)
+    if match:
+        return match.group(1)
+
+    # Flat path: calls/{call_uid}.wav
+    basename = os.path.basename(s3_key)
+    return os.path.splitext(basename)[0]
+
+
+def download_audio_with_fallback(bucket: str, s3_key: str, local_path: str) -> str:
+    """Download audio file with dual-read fallback for backward compatibility.
+
+    Args:
+        bucket: S3 bucket name
+        s3_key: Primary S3 object key (hierarchical or flat)
+        local_path: Local file path to save downloaded audio
+
+    Returns:
+        The s3_key that was successfully used for download
+    """
+    try:
+        # Try primary path first
+        s3.download_file(bucket, s3_key, local_path)
+        log.debug(f"Downloaded from primary path: {s3_key}")
+        return s3_key
+    except ClientError as e:
+        if e.response['Error']['Code'] == '404' or 'NoSuchKey' in str(e):
+            # Try legacy flat path
+            call_uid = _extract_call_uid_from_key(s3_key)
+            legacy_key = f"{BUCKET_PATH}/{call_uid}.wav"
+
+            if legacy_key != s3_key:  # Avoid infinite loop
+                log.info(f"Fallback: trying legacy path {legacy_key}")
+                try:
+                    s3.download_file(bucket, legacy_key, local_path)
+                    log.info(f"Downloaded from legacy path: {legacy_key}")
+                    return legacy_key
+                except ClientError:
+                    pass  # Fall through to re-raise original error
+
+        log.error(f"Failed to download from both {s3_key} and legacy path")
+        raise
+
 
 def get_pending_calls():
     with psycopg2.connect(**DB) as conn, conn.cursor() as cur:
@@ -33,12 +91,16 @@ def mark_processed(cur, call_id, success, error=None):
 
 def transcribe_file(call_id, s3_uri):
     bucket, key = s3_uri.replace("s3://", "").split("/", 1)
-    with tempfile.NamedTemporaryFile(suffix=".mp3") as tmp:
-        s3.download_file(bucket, key, tmp.name)
-        segments, info = model.transcribe(tmp.name, beam_size=5)
-        text = " ".join([seg.text for seg in segments])
-        confidence = sum(seg.avg_logprob for seg in segments) / len(segments)
-        return text, info.language, info.duration, confidence
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+        try:
+            download_audio_with_fallback(bucket, key, tmp.name)
+            segments, info = model.transcribe(tmp.name, beam_size=5)
+            text = " ".join([seg.text for seg in segments])
+            confidence = sum(seg.avg_logprob for seg in segments) / len(segments) if segments else 0
+            return text, info.language, info.duration, confidence
+        finally:
+            if os.path.exists(tmp.name):
+                os.remove(tmp.name)
 
 def main():
     conn = psycopg2.connect(**DB)
