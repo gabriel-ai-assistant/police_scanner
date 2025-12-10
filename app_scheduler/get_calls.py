@@ -81,6 +81,36 @@ except Exception:
 async def get_db():
     return await asyncpg.connect(DB_URL)
 
+
+async def verify_schema():
+    """Verify required columns exist before starting ingestion.
+
+    Checks for columns added in migration 005_s3_hierarchical.sql.
+    Raises RuntimeError if required columns are missing.
+    """
+    conn = await get_connection()
+    try:
+        result = await conn.fetch("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'bcfy_calls_raw'
+            AND column_name IN ('playlist_uuid', 's3_key_v2')
+        """)
+        columns = [r['column_name'] for r in result]
+
+        missing = []
+        if 'playlist_uuid' not in columns:
+            missing.append('playlist_uuid')
+        if 's3_key_v2' not in columns:
+            missing.append('s3_key_v2')
+
+        if missing:
+            raise RuntimeError(f"Missing required columns: {missing} - run migration 005_s3_hierarchical.sql")
+
+        log.info("Schema verification passed: playlist_uuid and s3_key_v2 columns exist")
+    finally:
+        await release_connection(conn)
+
+
 # =========================================================
 # HTTP (with API call tracking)
 # =========================================================
@@ -107,8 +137,8 @@ async def fetch_json(session, url, token, conn=None, params=None):
                         (endpoint, status_code, duration_ms, response_size)
                         VALUES ($1, $2, $3, $4)
                     """, url, status_code, duration_ms, len(text))
-                except:
-                    pass  # Don't fail fetch if logging fails
+                except Exception as metrics_err:
+                    log.warning(f"API metrics logging failed: {metrics_err}")
 
             log.info(f"HTTP {r.status} ({len(text)} bytes, {duration_ms}ms) → {url}")
 
@@ -134,8 +164,8 @@ async def fetch_json(session, url, token, conn=None, params=None):
                     (endpoint, status_code, duration_ms, error)
                     VALUES ($1, $2, $3, $4)
                 """, url, status_code, duration_ms, error_msg)
-            except:
-                pass
+            except Exception as metrics_err:
+                log.warning(f"API metrics logging failed for error case: {metrics_err}")
 
         raise
 
@@ -443,7 +473,7 @@ def convert_to_wav(input_path, timeout_sec=None):
 def _build_hierarchical_s3_key(call_uid, playlist_uuid, started_at):
     """Build hierarchical S3 key for time-partitioned storage.
 
-    Format: calls/playlist_id={UUID}/year={YYYY}/month={MM}/day={DD}/hour={HH}/call_{call_uid}.wav
+    Format: calls/playlist_id={UUID}/{YYYY}/{MM}/{DD}/call_{call_uid}.wav
 
     Args:
         call_uid: Unique call identifier (e.g., "12345-1702500000")
@@ -456,10 +486,9 @@ def _build_hierarchical_s3_key(call_uid, playlist_uuid, started_at):
     return (
         f"{MINIO_BUCKET_PATH}/"
         f"playlist_id={playlist_uuid}/"
-        f"year={started_at.year}/"
-        f"month={started_at.month:02d}/"
-        f"day={started_at.day:02d}/"
-        f"hour={started_at.hour:02d}/"
+        f"{started_at.year}/"
+        f"{started_at.month:02d}/"
+        f"{started_at.day:02d}/"
         f"call_{call_uid}.wav"
     )
 
@@ -596,39 +625,54 @@ async def quick_insert_call_metadata(conn, playlist_uuid, call):
         conn: Database connection
         playlist_uuid: UUID of the playlist (stored for hierarchical S3 path construction)
         call: Call metadata dict from Broadcastify API
+
+    Returns:
+        dict: {'status': 'inserted'|'duplicate'|'error', 'call_uid': str, 'error': str|None}
     """
     call_uid = f"{call['groupId']}-{call['ts']}"
 
-    await conn.execute("""
-        INSERT INTO bcfy_calls_raw (
-            call_uid, group_id, ts, feed_id, tg_id, tag_id, node_id, sid, site_id,
-            freq, src, url, started_at, ended_at, duration_ms, size_bytes,
-            fetched_at, raw_json, processed, playlist_uuid
-        ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-            TO_TIMESTAMP($13), TO_TIMESTAMP($14), $15, $16, NOW(), $17, FALSE, $18
+    try:
+        # Use RETURNING to verify insert success vs ON CONFLICT skip
+        result = await conn.fetchrow("""
+            INSERT INTO bcfy_calls_raw (
+                call_uid, group_id, ts, feed_id, tg_id, tag_id, node_id, sid, site_id,
+                freq, src, url, started_at, ended_at, duration_ms, size_bytes,
+                fetched_at, raw_json, processed, playlist_uuid
+            ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+                TO_TIMESTAMP($13), TO_TIMESTAMP($14), $15, $16, NOW(), $17, FALSE, $18
+            )
+            ON CONFLICT(call_uid) DO NOTHING
+            RETURNING call_uid
+        """,
+            call_uid,
+            call.get("groupId"),
+            call.get("ts"),
+            call.get("feedId"),
+            call.get("tgId"),
+            call.get("tag"),
+            call.get("nodeId"),
+            call.get("sid"),
+            call.get("siteId"),
+            call.get("freq"),
+            call.get("src"),
+            call.get("url"),  # Original M4A URL from Broadcastify (converted to WAV)
+            call.get("start_ts", call.get("ts")),
+            call.get("end_ts", call.get("ts")),
+            int(call.get("duration", 0) * 1000),
+            call.get("size"),
+            json.dumps(call),
+            playlist_uuid  # Store playlist UUID for hierarchical S3 path construction
         )
-        ON CONFLICT(call_uid) DO NOTHING
-    """,
-        call_uid,
-        call.get("groupId"),
-        call.get("ts"),
-        call.get("feedId"),
-        call.get("tgId"),
-        call.get("tag"),
-        call.get("nodeId"),
-        call.get("sid"),
-        call.get("siteId"),
-        call.get("freq"),
-        call.get("src"),
-        call.get("url"),  # Original M4A URL from Broadcastify (converted to WAV)
-        call.get("start_ts", call.get("ts")),
-        call.get("end_ts", call.get("ts")),
-        int(call.get("duration", 0) * 1000),
-        call.get("size"),
-        json.dumps(call),
-        playlist_uuid  # Store playlist UUID for hierarchical S3 path construction
-    )
+
+        if result:
+            return {'status': 'inserted', 'call_uid': call_uid, 'error': None}
+        else:
+            return {'status': 'duplicate', 'call_uid': call_uid, 'error': None}
+
+    except Exception as e:
+        log.error(f"INSERT failed for {call_uid}: {e}")
+        return {'status': 'error', 'call_uid': call_uid, 'error': str(e)}
 
 async def poll_start(conn, uuid):
     await conn.execute("INSERT INTO bcfy_playlist_poll_log(uuid,poll_started_at) VALUES($1,NOW());", uuid)
@@ -701,9 +745,40 @@ async def process_playlist(session, token, pl):
 
             log.info(f"Received {len(calls)} calls (lastPos: {new_last_pos})")
 
-            # Insert metadata for all calls
+            # Track insert metrics
+            inserted_count = 0
+            duplicate_count = 0
+            error_count = 0
+
+            # Insert metadata for all calls with verification
             for call in calls:
-                await quick_insert_call_metadata(conn, uuid, call)
+                result = await quick_insert_call_metadata(conn, uuid, call)
+                if result['status'] == 'inserted':
+                    inserted_count += 1
+                elif result['status'] == 'duplicate':
+                    duplicate_count += 1
+                else:
+                    error_count += 1
+
+            # Log batch metrics
+            log.info(f"Playlist '{name}': {inserted_count} inserted, "
+                     f"{duplicate_count} duplicates, {error_count} errors")
+
+            # Log to system_logs for observability
+            await conn.execute("""
+                INSERT INTO system_logs (component, event_type, message, metadata)
+                VALUES ($1, $2, $3, $4)
+            """, 'ingestion', 'playlist_batch',
+                 f"Playlist {name}: {inserted_count}/{len(calls)} inserted",
+                 json.dumps({
+                     'playlist_uuid': str(uuid),
+                     'playlist_name': name,
+                     'total_calls': len(calls),
+                     'inserted': inserted_count,
+                     'duplicates': duplicate_count,
+                     'errors': error_count,
+                     'last_pos': new_last_pos
+                 }))
 
             # Update last_pos for next poll (critical for incremental polling)
             if new_last_pos:
@@ -713,7 +788,7 @@ async def process_playlist(session, token, pl):
                     uuid
                 )
 
-            await poll_end(conn, uuid, True, f"Processed {len(calls)} calls, lastPos={new_last_pos}")
+            await poll_end(conn, uuid, True, f"Processed {len(calls)} calls ({inserted_count} new, {duplicate_count} dup), lastPos={new_last_pos}")
             log.info(f"✅ Finished playlist '{name}'")
 
         except Exception as e:
@@ -729,7 +804,16 @@ async def process_playlist(session, token, pl):
 # =========================================================
 # Main Loop
 # =========================================================
+_schema_verified = False  # Module-level flag to ensure schema check runs once
+
 async def ingest_loop():
+    global _schema_verified
+
+    # One-time schema verification at startup
+    if not _schema_verified:
+        await verify_schema()
+        _schema_verified = True
+
     cycle_start = time.time()
     conn = await get_connection()  # Get from pool
 
