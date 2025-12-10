@@ -45,7 +45,8 @@
       "Bash(docker volume:*)",
       "Bash(aws s3 ls:*)",
       "Bash(git rebase:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(ffmpeg:*)"
     ],
     "deny": [],
     "ask": []

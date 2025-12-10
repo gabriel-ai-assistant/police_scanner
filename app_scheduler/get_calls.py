@@ -142,59 +142,300 @@ async def fetch_json(session, url, token, conn=None, params=None):
 # =========================================================
 # Audio Analysis + Conversion
 # =========================================================
+def analyze_audio_enhanced(path):
+    """Enhanced audio analysis for adaptive multi-tier processing."""
+    try:
+        y, sr = librosa.load(path, sr=None, mono=True)
+
+        # Existing metrics
+        rms = 20 * np.log10(np.mean(librosa.feature.rms(y=y)) + 1e-9)
+        centroid = librosa.feature.spectral_centroid(y=y, sr=sr).mean()
+        noise_floor = np.percentile(np.abs(y), 10)
+
+        # NEW: Enhanced metrics
+        dynamic_range = np.percentile(np.abs(y), 95) - noise_floor
+        zero_crossing_rate = librosa.feature.zero_crossing_rate(y).mean()
+
+        # NEW: Quality scoring (0-100 scale)
+        snr_estimate = 20 * np.log10(dynamic_range / (noise_floor + 1e-9))
+        quality_score = min(100, max(0, (snr_estimate + 10) * 5))
+
+        return {
+            'quality_score': quality_score,
+            'snr_estimate': snr_estimate,
+            'rms': rms,
+            'spectral_centroid': centroid,
+            'noise_floor': noise_floor,
+            'dynamic_range': dynamic_range,
+            'zero_crossing_rate': zero_crossing_rate
+        }
+    except Exception as e:
+        log.error(f"Audio analysis failed: {e}")
+        # Return default values for unknown quality
+        return {
+            'quality_score': 50,
+            'snr_estimate': 10,
+            'rms': -20,
+            'spectral_centroid': 3000,
+            'noise_floor': 0.002,
+            'dynamic_range': 0.1,
+            'zero_crossing_rate': 0.1
+        }
+
+# Legacy function for backwards compatibility
 def analyze_audio(path):
-    y, sr = librosa.load(path, sr=None, mono=True)
-    rms = 20 * np.log10(np.mean(librosa.feature.rms(y=y)) + 1e-9)
-    centroid = librosa.feature.spectral_centroid(y=y, sr=sr).mean()
-    noise = np.percentile(np.abs(y), 10)
-    return rms, centroid, noise
+    """Legacy function - use analyze_audio_enhanced() instead."""
+    analysis = analyze_audio_enhanced(path)
+    return analysis['rms'], analysis['spectral_centroid'], analysis['noise_floor']
 
-def build_ffmpeg_command(input_path, output_path):
-    rms, centroid, noise = analyze_audio(input_path)
-    afftdn = "-20"
-    lowpass = "6000"
-    filters = []
+def build_tier1_filters(analysis):
+    """Build filter chain for clean audio (quality_score > 70).
 
-    if centroid > 3500:
-        afftdn = "-25"
-    elif centroid < 2500:
-        afftdn = "-20"
+    Light processing to preserve original quality.
+    """
+    filters = [
+        "highpass=f=300:poles=2",
+        "lowpass=f=3400:poles=2",
+        "afftdn=nf=-20:nt=w",
+        "speechnorm=peak=0.95:expansion=2:compression=2",
+        f"loudnorm=I={AUDIO_TARGET_DB}:LRA=11:TP=-1.5"
+    ]
+    return filters
 
-    if rms < -28:
-        filters.append("acompressor=ratio=3:threshold=-25dB:makeup=5dB")
+def build_tier2_filters(analysis):
+    """Build filter chain for moderate quality (40 < quality_score <= 70).
 
-    if noise > 0.002:
-        filters.append(f"highpass=f=250,lowpass=f={lowpass}")
+    Standard police radio processing with noise reduction and speech enhancement.
+    """
+    filters = [
+        "adeclick=threshold=0.1",
+        "highpass=f=300:poles=2",
+        "afwtdn=percent=75:profile=true:adaptive=true",
+        "afftdn=nf=-23:nt=w",
+        "lowpass=f=3400:poles=2",
+        "equalizer=f=1000:width_type=o:width=1.5:g=3",
+        "speechnorm=peak=0.95:expansion=2:compression=2",
+        "agate=threshold=0.02:release=100",
+        f"loudnorm=I={AUDIO_TARGET_DB}:LRA=11:TP=-1.5"
+    ]
+    return filters
 
-    filter_chain = f"loudnorm=I={AUDIO_TARGET_DB}:LRA=11:TP=-1,afftdn=nf={afftdn}"
-    if filters:
-        filter_chain += "," + ",".join(filters)
+def build_tier3_filters(analysis):
+    """Build filter chain for poor quality (quality_score <= 40).
 
-    cmd = [
-        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+    Aggressive multi-stage processing for severely degraded audio.
+    """
+    filters = [
+        "adeclick=threshold=0.1",
+        "highpass=f=300:poles=2",
+        "afwtdn=percent=85:profile=true:adaptive=true:softness=2",
+        "afftdn=nf=-25:nt=w:tn=true",
+        "anlmdn=s=0.00005:p=0.002:r=0.006:m=15",
+        "lowpass=f=3400:poles=2",
+        "equalizer=f=1000:width_type=o:width=1.5:g=4",
+        "acompressor=threshold=-24dB:ratio=4:attack=5:release=50:makeup=auto",
+        "speechnorm=peak=0.95:expansion=3:compression=3",
+        "agate=threshold=0.03:release=80",
+        f"loudnorm=I={AUDIO_TARGET_DB}:LRA=11:TP=-1.5"
+    ]
+    return filters
+
+def build_fallback_command(input_path, output_path):
+    """Fallback command if audio analysis fails."""
+    filter_chain = f"loudnorm=I={AUDIO_TARGET_DB}:LRA=11:TP=-1.5,afftdn=nf=-20"
+    return [
+        "ffmpeg", "-hide_banner", "-loglevel", "warning", "-y",
         "-i", input_path,
         "-ac", "1", "-ar", str(AUDIO_SR), "-c:a", "pcm_s16le",
-        "-filter:a", filter_chain, output_path
+        "-filter:a", filter_chain,
+        output_path
     ]
-    log.info(f"🎛️ FFmpeg command: {' '.join(cmd)}")
-    return cmd
 
-def convert_to_wav(input_path):
+def build_ffmpeg_command(input_path, output_path):
+    """Build adaptive FFmpeg command with quality-based tier selection.
+
+    Returns: (cmd, analysis) tuple for command execution and logging
+    """
+    try:
+        # Analyze audio characteristics
+        analysis = analyze_audio_enhanced(input_path)
+
+        # Log analysis results
+        log.info(f"📊 Audio analysis: quality={analysis['quality_score']:.0f}/100, "
+                 f"SNR≈{analysis['snr_estimate']:.1f}dB, "
+                 f"RMS={analysis['rms']:.1f}dB, "
+                 f"noise_floor={analysis['noise_floor']:.4f}")
+
+        # Select processing tier based on quality score
+        quality_score = analysis['quality_score']
+        if quality_score > 70:
+            tier = "TIER1-CLEAN"
+            filters = build_tier1_filters(analysis)
+        elif quality_score > 40:
+            tier = "TIER2-MODERATE"
+            filters = build_tier2_filters(analysis)
+        else:
+            tier = "TIER3-POOR"
+            filters = build_tier3_filters(analysis)
+
+        log.info(f"🎯 Processing tier: {tier} ({len(filters)} filters)")
+
+        # Build ffmpeg command
+        filter_chain = ",".join(filters)
+        cmd = [
+            "ffmpeg", "-hide_banner", "-loglevel", "warning", "-y",
+            "-i", input_path,
+            "-ac", "1", "-ar", str(AUDIO_SR), "-c:a", "pcm_s16le",
+            "-filter:a", filter_chain,
+            output_path
+        ]
+
+        return cmd, analysis
+
+    except Exception as e:
+        log.error(f"❌ Failed to build FFmpeg command: {e}")
+        # Return fallback command with analysis=None
+        return build_fallback_command(input_path, output_path), None
+
+def validate_wav_output(wav_path, expected_duration_sec=None):
+    """Validate WAV file quality and integrity.
+
+    Checks:
+    - File exists and has content
+    - Correct sample rate (16kHz)
+    - Mono channel
+    - Duration within tolerance
+    - Not silent
+    - Not excessively clipped
+
+    Returns: (is_valid, message) tuple
+    """
+    try:
+        # Check file exists and has content
+        if not os.path.exists(wav_path):
+            return False, "Output file not created"
+
+        size_bytes = os.path.getsize(wav_path)
+        if size_bytes < 1000:
+            return False, f"Output too small: {size_bytes} bytes"
+
+        # Load and validate audio properties
+        y, sr = librosa.load(wav_path, sr=None, mono=False)
+
+        # Check sample rate
+        if sr != AUDIO_SR:
+            return False, f"Wrong sample rate: {sr}Hz (expected {AUDIO_SR}Hz)"
+
+        # Check mono
+        if y.ndim > 1:
+            return False, f"Wrong channels: {y.shape[0]} (expected 1)"
+
+        # Check duration if expected is provided
+        if expected_duration_sec and expected_duration_sec > 0:
+            actual_duration = len(y) / sr
+            duration_diff = abs(actual_duration - expected_duration_sec)
+            tolerance = max(expected_duration_sec * 0.15, 0.5)  # 15% or 0.5s
+            if duration_diff > tolerance:
+                return False, f"Duration mismatch: {actual_duration:.1f}s vs {expected_duration_sec:.1f}s"
+
+        # Check for silence
+        max_amplitude = np.max(np.abs(y))
+        if max_amplitude < 0.001:
+            return False, f"Output is silent (max amplitude: {max_amplitude:.6f})"
+
+        # Check for excessive clipping
+        clipping_ratio = np.sum(np.abs(y) > 0.99) / len(y) if len(y) > 0 else 0
+        if clipping_ratio > 0.02:  # More than 2% clipped
+            log.warning(f"⚠️ Output has clipping: {clipping_ratio*100:.1f}% of samples")
+
+        return True, "Valid"
+
+    except Exception as e:
+        return False, f"Validation error: {str(e)}"
+
+
+def convert_to_wav(input_path, timeout_sec=None):
+    """Convert MP3 to WAV with timeout, validation, and enhanced error handling.
+
+    Args:
+        input_path: Path to input MP3 file
+        timeout_sec: Optional timeout in seconds (default: 2x duration or 60s min)
+
+    Returns:
+        Path to converted WAV file (input MP3 is deleted on success)
+
+    Raises:
+        Exception: On conversion failure, validation failure, or timeout
+    """
     base = os.path.splitext(input_path)[0]
     output_path = f"{base}.wav"
-    cmd = build_ffmpeg_command(input_path, output_path)
+    expected_duration = None
+
     try:
-        subprocess.run(cmd, check=True)
+        # Probe input duration for timeout calculation
+        probe_cmd = ['ffprobe', '-v', 'error', '-show_entries',
+                     'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1',
+                     input_path]
+        result = subprocess.run(probe_cmd, capture_output=True, text=True, timeout=10)
+        expected_duration = float(result.stdout.strip())
+
+        # Calculate timeout (2x duration, minimum 60s)
+        if not timeout_sec:
+            timeout_sec = max(60, expected_duration * 2)
+    except Exception as probe_err:
+        log.warning(f"Could not probe input duration: {probe_err}")
+        timeout_sec = timeout_sec or 60
+        expected_duration = None
+
+    # Build FFmpeg command with analysis
+    cmd, analysis = build_ffmpeg_command(input_path, output_path)
+
+    try:
+        # Execute conversion with timeout protection
+        log.info(f"⏱️  Converting with timeout={timeout_sec}s...")
+        start_time = time.time()
+        result = subprocess.run(
+            cmd,
+            check=True,
+            timeout=timeout_sec,
+            capture_output=True,
+            text=True
+        )
+        conversion_time_ms = int((time.time() - start_time) * 1000)
+
+        # Validate output file
+        is_valid, validation_msg = validate_wav_output(output_path, expected_duration)
+        if not is_valid:
+            log.error(f"❌ Validation failed: {validation_msg}")
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            raise Exception(f"Output validation failed: {validation_msg}")
+
+        # Log success
+        size = os.path.getsize(output_path)
+        log.info(f"✅ Converted successfully → {output_path} ({size:,} bytes, {conversion_time_ms}ms)")
+
+        # Log analysis and tier info
+        if analysis:
+            log.info(f"   Quality: {analysis['quality_score']:.0f}/100, "
+                    f"SNR: {analysis['snr_estimate']:.1f}dB")
+
+        # Delete source only after successful validation
+        os.remove(input_path)
+        return output_path
+
+    except subprocess.TimeoutExpired:
+        log.error(f"⏱️  FFmpeg timeout after {timeout_sec}s on {input_path}")
         if os.path.exists(output_path):
-            size = os.path.getsize(output_path)
-            log.info(f"🎧 Converted successfully → {output_path} ({size:,} bytes)")
-        else:
-            log.warning(f"⚠️ Output missing: {output_path}")
+            os.remove(output_path)
+        raise Exception(f"Conversion timeout after {timeout_sec}s")
+
     except subprocess.CalledProcessError as e:
-        log.error(f"❌ FFmpeg failed: {e}")
-        raise
-    os.remove(input_path)
-    return output_path
+        stderr = e.stderr[:500] if e.stderr else "Unknown error"
+        log.error(f"❌ FFmpeg failed: {stderr}")
+        if os.path.exists(output_path):
+            os.remove(output_path)
+        raise Exception(f"FFmpeg error: {stderr}")
 
 # =========================================================
 # Audio Storage
