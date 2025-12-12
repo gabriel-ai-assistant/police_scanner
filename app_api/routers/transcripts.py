@@ -1,11 +1,61 @@
 from fastapi import APIRouter, Query, Depends, HTTPException
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import asyncpg
+import json
 
 from database import get_pool
 from models.transcripts import Transcript, TranscriptSearchResult
 
 router = APIRouter()
+
+
+def transform_transcript_response(row: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Transform transcript database row to frontend-expected format.
+
+    Converts:
+    - JSONB 'words' column → 'segments' array with {start, end, text, keywords}
+    - 'created_at' → 'createdAt' (keeps original for backward compatibility)
+    - 'call_uid' → 'callId' (keeps original for backward compatibility)
+    """
+    result = dict(row)
+
+    # Transform JSONB words to segments array
+    words_data = result.get('words')
+    segments = []
+
+    if words_data:
+        # Handle JSONB data - could be dict, list, or string
+        if isinstance(words_data, str):
+            try:
+                words_data = json.loads(words_data)
+            except (json.JSONDecodeError, TypeError):
+                words_data = None
+
+        # If words_data is a list of segments
+        if isinstance(words_data, list):
+            segments = [
+                {
+                    "start": segment.get("start", 0),
+                    "end": segment.get("end", 0),
+                    "text": segment.get("text", ""),
+                    "keywords": []  # Can be populated from text analysis if needed
+                }
+                for segment in words_data
+                if isinstance(segment, dict)
+            ]
+
+    # Add segments to result
+    result['segments'] = segments
+
+    # Add camelCase aliases for frontend compatibility
+    if 'created_at' in result and result['created_at']:
+        result['createdAt'] = result['created_at'].isoformat() if hasattr(result['created_at'], 'isoformat') else str(result['created_at'])
+
+    if 'call_uid' in result:
+        result['callId'] = result['call_uid']
+
+    return result
 
 
 @router.get("", response_model=List[Transcript])
@@ -31,7 +81,7 @@ async def list_transcripts(
     async with pool.acquire() as conn:
         rows = await conn.fetch(query, *params)
 
-    return [dict(row) for row in rows]
+    return [transform_transcript_response(dict(row)) for row in rows]
 
 
 @router.get("/search", response_model=List[TranscriptSearchResult])
@@ -54,7 +104,7 @@ async def search_transcripts(
         """
         async with pool.acquire() as conn:
             rows = await conn.fetch(query, limit, offset)
-        return [dict(row) for row in rows]
+        return [transform_transcript_response(dict(row)) for row in rows]
 
     # Full-text search
     query = """
@@ -70,7 +120,7 @@ async def search_transcripts(
     async with pool.acquire() as conn:
         rows = await conn.fetch(query, q, limit, offset)
 
-    return [dict(row) for row in rows]
+    return [transform_transcript_response(dict(row)) for row in rows]
 
 
 @router.get("/{transcript_id}", response_model=Transcript)
@@ -88,4 +138,4 @@ async def get_transcript(
     if row is None:
         raise HTTPException(status_code=404, detail="Transcript not found")
 
-    return dict(row)
+    return transform_transcript_response(dict(row))

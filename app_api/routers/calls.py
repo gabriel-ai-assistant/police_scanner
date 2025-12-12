@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query, Depends
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import asyncpg
 
@@ -7,6 +7,23 @@ from database import get_pool
 from models.calls import CallMetadata, HourlyStats, FeedStats
 
 router = APIRouter()
+
+
+def transform_call_response(row: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Transform call database row to frontend-expected format.
+
+    Adds:
+    - 'timestamp' field mapped from 'started_at'
+    - Keeps original 'started_at' for backward compatibility
+    """
+    result = dict(row)
+
+    # Add 'timestamp' alias for frontend compatibility
+    if 'started_at' in result and result['started_at']:
+        result['timestamp'] = result['started_at'].isoformat() if hasattr(result['started_at'], 'isoformat') else str(result['started_at'])
+
+    return result
 
 
 @router.get("", response_model=List[CallMetadata])
@@ -38,7 +55,7 @@ async def list_calls(
     async with pool.acquire() as conn:
         rows = await conn.fetch(query, *params)
 
-    return [dict(row) for row in rows]
+    return [transform_call_response(dict(row)) for row in rows]
 
 
 @router.get("/{call_uid}", response_model=CallMetadata)
@@ -56,7 +73,7 @@ async def get_call(
     if row is None:
         return {"error": "Call not found"}
 
-    return dict(row)
+    return transform_call_response(dict(row))
 
 
 @router.get("/stats/hourly", response_model=List[HourlyStats])

@@ -38,12 +38,14 @@ async def process_pending_audio():
     conn = await get_connection()
     try:
         # Get unprocessed calls with metadata for hierarchical S3 paths (oldest first)
+        # FOR UPDATE SKIP LOCKED prevents concurrent workers from processing the same call
         calls = await conn.fetch("""
             SELECT call_uid, url, raw_json, playlist_uuid, started_at, tg_id, duration_ms, feed_id
             FROM bcfy_calls_raw
             WHERE processed = FALSE AND error IS NULL
             ORDER BY fetched_at ASC
             LIMIT $1
+            FOR UPDATE SKIP LOCKED
         """, BATCH_SIZE)
 
         if not calls:
@@ -77,11 +79,19 @@ async def process_pending_audio():
                         s3_key, s3_uri = await store_audio(session, src_url, call_uid, call_metadata)
 
                         # Update with S3 location and new hierarchical key
-                        await conn.execute("""
+                        result = await conn.execute("""
                             UPDATE bcfy_calls_raw
                             SET url = $1, s3_key_v2 = $2, processed = TRUE, last_attempt = NOW()
                             WHERE call_uid = $3
                         """, s3_uri, s3_key, call_uid)
+
+                        # Verify exactly 1 row was updated (asyncpg returns "UPDATE N")
+                        rows_affected = int(result.split()[-1])
+                        if rows_affected != 1:
+                            log.error(f"UPDATE affected {rows_affected} rows for {call_uid}, expected 1")
+                            # Continue anyway - audio is already in S3
+                        else:
+                            log.debug(f"UPDATE verified: 1 row affected for {call_uid}")
 
                         log.info(f"✓ Processed {call_uid} "
                                 f"(attempt {attempt + 1}/{MAX_RETRIES + 1})")

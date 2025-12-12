@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Query, Depends, HTTPException
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
+from datetime import datetime
 import asyncpg
 import uuid as uuid_lib
 
@@ -7,6 +8,37 @@ from database import get_pool
 from models.playlists import Playlist, PlaylistUpdate, PlaylistStats
 
 router = APIRouter()
+
+
+def transform_playlist_response(row: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Transform playlist database row to frontend-expected format.
+
+    Converts:
+    - 'uuid' → 'id' (keeps 'uuid' for backward compatibility)
+    - 'sync' → 'isActive' (keeps 'sync' for backward compatibility)
+    - Adds 'state' field: "active" if sync else "idle"
+    - 'fetched_at' → 'updatedAt' (keeps 'fetched_at' for backward compatibility)
+    """
+    result = dict(row)
+
+    # Convert UUID to string for JSON serialization
+    if 'uuid' in result and result['uuid']:
+        result['uuid'] = str(result['uuid'])
+        result['id'] = result['uuid']
+
+    if 'sync' in result:
+        result['isActive'] = bool(result['sync'])
+        # Add computed 'state' field
+        result['state'] = "active" if result['sync'] else "idle"
+
+    if 'fetched_at' in result and result['fetched_at']:
+        result['updatedAt'] = result['fetched_at'].isoformat() if hasattr(result['fetched_at'], 'isoformat') else str(result['fetched_at'])
+    else:
+        # Fallback to current timestamp if fetched_at is NULL
+        result['updatedAt'] = datetime.utcnow().isoformat()
+
+    return result
 
 
 @router.get("", response_model=List[Playlist])
@@ -30,7 +62,7 @@ async def list_playlists(
     async with pool.acquire() as conn:
         rows = await conn.fetch(query, *params)
 
-    return [dict(row) for row in rows]
+    return [transform_playlist_response(dict(row)) for row in rows]
 
 
 @router.get("/{playlist_uuid}", response_model=Playlist)
@@ -53,7 +85,7 @@ async def get_playlist(
     if row is None:
         raise HTTPException(status_code=404, detail="Playlist not found")
 
-    return dict(row)
+    return transform_playlist_response(dict(row))
 
 
 @router.patch("/{playlist_uuid}", response_model=Playlist)
@@ -78,7 +110,7 @@ async def update_playlist(
     if row is None:
         raise HTTPException(status_code=404, detail="Playlist not found")
 
-    return dict(row)
+    return transform_playlist_response(dict(row))
 
 
 @router.get("/stats/summary", response_model=PlaylistStats)

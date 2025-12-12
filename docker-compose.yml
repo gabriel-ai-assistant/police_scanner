@@ -101,7 +101,46 @@ services:
       retries: 3
       start_period: 20s
 
+  # ===========================================================
+  # MONITORING UIS
+  # ===========================================================
+  flower:
+    image: mher/flower:2.0
+    container_name: scanner-flower
+    command:
+      - celery
+      - --broker=redis://redis:6379/0
+      - flower
+      - --port=5555
+      - --basic-auth=admin:changeme
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - FLOWER_PORT=5555
+      - FLOWER_BASIC_AUTH=admin:changeme
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+      - app_transcription
+    restart: unless-stopped
+
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: scanner-redisinsight
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "5540:5540"
+    volumes:
+      - redisinsight-data:/data
+    depends_on:
+      - redis
+    restart: unless-stopped
+
 # ===========================================================
 # VOLUMES
 # ===========================================================
-# No volumes needed - all services use external resources
+volumes:
+  redisinsight-data:
+    driver: local

@@ -8,6 +8,7 @@ asyncpg==0.30.0
 # Scheduling + background jobs
 apscheduler==3.10.4
 celery==5.4.0
+redis==5.2.0
 
 # AWS SDK
 boto3==1.35.57

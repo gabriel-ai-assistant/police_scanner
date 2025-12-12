@@ -13,7 +13,29 @@ from models.calls import CallMetadata
 router = APIRouter()
 
 
-@router.get("/dashboard", response_model=DashboardMetrics)
+def transform_dashboard_metrics(metrics: DashboardMetrics) -> Dict[str, Any]:
+    """
+    Transform dashboard metrics to include frontend-expected field names.
+
+    Adds camelCase aliases:
+    - 'active_playlists' → 'feedCount', 'activeFeeds'
+    - 'total_calls_24h' → 'recentCalls'
+    - 'transcripts_today' → 'transcriptsToday'
+    - Keeps original snake_case fields for backward compatibility
+    """
+    # Convert Pydantic model to dict
+    result = metrics.model_dump() if hasattr(metrics, 'model_dump') else metrics.dict()
+
+    # Add camelCase aliases
+    result['feedCount'] = result.get('active_playlists', 0)
+    result['activeFeeds'] = result.get('active_playlists', 0)
+    result['recentCalls'] = result.get('total_calls_24h', 0)
+    result['transcriptsToday'] = result.get('transcripts_today', 0)
+
+    return result
+
+
+@router.get("/dashboard")
 async def get_dashboard_metrics(
     pool: asyncpg.Pool = Depends(get_pool)
 ):
@@ -71,7 +93,7 @@ async def get_dashboard_metrics(
             """
         )
 
-    return DashboardMetrics(
+    metrics = DashboardMetrics(
         total_calls_24h=total_calls or 0,
         active_playlists=active_playlists or 0,
         transcripts_today=transcripts_today or 0,
@@ -84,6 +106,8 @@ async def get_dashboard_metrics(
             for row in top_talkgroups
         ]
     )
+
+    return transform_dashboard_metrics(metrics)
 
 
 @router.get("/hourly", response_model=List[HourlyPoint])

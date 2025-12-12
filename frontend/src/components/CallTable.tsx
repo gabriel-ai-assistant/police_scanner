@@ -3,6 +3,7 @@ import { Play } from 'lucide-react';
 import type { Call } from '../types/call';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
+import { formatTime } from '../lib/dates';
 
 interface CallTableProps {
   calls: Call[];
@@ -36,7 +37,7 @@ function CallTable({ calls, onSelect }: CallTableProps) {
         <tbody className="divide-y divide-border bg-card">
           {calls.map((call) => (
             <tr key={call.id} className="hover:bg-muted/40">
-              <td className="px-4 py-3 font-medium">{new Date(call.timestamp).toLocaleTimeString()}</td>
+              <td className="px-4 py-3 font-medium">{formatTime(call.timestamp)}</td>
               <td className="px-4 py-3">{call.talkgroup}</td>
               <td className="px-4 py-3">{call.description}</td>
               <td className="px-4 py-3">

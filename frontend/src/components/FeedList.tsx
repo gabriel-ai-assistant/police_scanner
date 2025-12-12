@@ -3,6 +3,7 @@ import { Radio } from 'lucide-react';
 import type { Feed } from '../types/feed';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
+import { formatDate } from '../lib/dates';
 
 interface FeedListProps {
   feeds: Feed[];
@@ -36,7 +37,7 @@ function FeedList({ feeds, onViewCalls }: FeedListProps) {
             </div>
             <div className="col-span-2">
               <dt className="text-muted-foreground">Updated</dt>
-              <dd className="font-medium">{new Date(feed.updatedAt).toLocaleString()}</dd>
+              <dd className="font-medium">{formatDate(feed.updatedAt)}</dd>
             </div>
           </dl>
           {onViewCalls ? (

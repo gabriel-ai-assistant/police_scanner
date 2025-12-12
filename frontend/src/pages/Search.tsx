@@ -8,6 +8,7 @@ import LoadingScreen from '../components/LoadingScreen';
 import SearchBar from '../components/SearchBar';
 import TranscriptViewer from '../components/TranscriptViewer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { formatDate } from '../lib/dates';
 
 function Search() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -61,7 +62,7 @@ function Search() {
                     <CardHeader>
                       <CardTitle className="text-base">Transcript {transcript.id}</CardTitle>
                       <CardDescription>
-                        Processed {new Date(transcript.createdAt).toLocaleString()} — Call {transcript.callId}
+                        Processed {formatDate(transcript.createdAt)} — Call {transcript.callId}
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
