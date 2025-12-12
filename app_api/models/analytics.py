@@ -33,6 +33,12 @@ class DashboardMetrics(BaseModel):
     recent_calls: List[dict]
     top_talkgroups: List[TalkgroupHit]
 
+    # Transformed fields (added by API transformer for frontend compatibility)
+    feedCount: Optional[int] = None
+    activeFeeds: Optional[int] = None
+    recentCalls: Optional[int] = None
+    transcriptsToday: Optional[str] = None
+
 
 class QualityDistribution(BaseModel):
     """Transcription quality distribution."""

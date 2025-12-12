@@ -18,6 +18,9 @@ class CallMetadata(BaseModel):
     processed: bool = False
     error: Optional[str] = None
 
+    # Transformed fields (added by API transformer for frontend compatibility)
+    timestamp: Optional[str] = None
+
     class Config:
         from_attributes = True
 

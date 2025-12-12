@@ -66,10 +66,13 @@ async def get_dashboard_metrics(
             "SELECT COUNT(*) FROM processing_state WHERE status = 'queued'"
         ) or 0
 
-        # Get API calls today
-        api_calls_today = await conn.fetchval(
-            "SELECT COUNT(*) FROM api_call_metrics WHERE timestamp >= CURRENT_DATE"
-        ) or 0
+        # Get API calls today (with fallback if table doesn't exist)
+        try:
+            api_calls_today = await conn.fetchval(
+                "SELECT COUNT(*) FROM api_call_metrics WHERE timestamp >= CURRENT_DATE"
+            ) or 0
+        except asyncpg.UndefinedTableError:
+            api_calls_today = 0
 
         # Get recent calls
         recent_calls = await conn.fetch(

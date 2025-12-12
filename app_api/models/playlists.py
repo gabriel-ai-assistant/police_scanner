@@ -29,6 +29,12 @@ class Playlist(PlaylistBase):
     last_pos: Optional[int] = None
     fetched_at: Optional[datetime] = None
 
+    # Transformed fields (added by API transformer for frontend compatibility)
+    id: Optional[str] = None
+    isActive: Optional[bool] = None
+    state: Optional[str] = None
+    updatedAt: Optional[str] = None
+
     class Config:
         from_attributes = True
 

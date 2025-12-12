@@ -21,6 +21,11 @@ class Transcript(TranscriptBase):
     created_at: Optional[datetime] = None
     recording_id: Optional[int] = None
 
+    # Transformed fields (added by API transformer for frontend compatibility)
+    createdAt: Optional[str] = None
+    callId: Optional[str] = None
+    segments: Optional[list] = None
+
     class Config:
         from_attributes = True
 
