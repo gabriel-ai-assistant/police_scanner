@@ -1,4 +1,0 @@
-NOTE: Add @radix-ui/react-tabs to package.json dependencies:
-"@radix-ui/react-tabs": "^1.0.4"
-
-Run: npm install @radix-ui/react-tabs
