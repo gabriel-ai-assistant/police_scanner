@@ -63,6 +63,16 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       API_HOST: 0.0.0.0
       API_PORT: 8000
+      # Firebase Authentication
+      FIREBASE_SERVICE_ACCOUNT_PATH: /opt/policescanner/secrets/firebase-service-account.json
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-scanner_session}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      SESSION_COOKIE_HTTPONLY: ${SESSION_COOKIE_HTTPONLY:-true}
+      SESSION_COOKIE_SAMESITE: ${SESSION_COOKIE_SAMESITE:-lax}
+      SESSION_COOKIE_MAX_AGE: ${SESSION_COOKIE_MAX_AGE:-604800}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+    volumes:
+      - ./secrets/firebase-service-account.json:/opt/policescanner/secrets/firebase-service-account.json:ro
     depends_on:
       redis:
         condition: service_started
@@ -87,6 +97,9 @@ services:
       args:
         - VITE_API_URL=/api
         - VITE_MOCK=0
+        - VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY:-}
+        - VITE_FIREBASE_AUTH_DOMAIN=${VITE_FIREBASE_AUTH_DOMAIN:-}
+        - VITE_FIREBASE_PROJECT_ID=${VITE_FIREBASE_PROJECT_ID:-}
     container_name: scanner-frontend
     ports:
       - "80:80"

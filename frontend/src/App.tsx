@@ -10,8 +10,13 @@ import Calls from './pages/Calls';
 import Search from './pages/Search';
 import Settings from './pages/Settings';
 import Admin from './pages/Admin';
+import Login from './pages/Login';
+import { ProtectedRoute } from './auth';
 
-function App() {
+/**
+ * Main app layout with sidebar and navbar
+ */
+function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
@@ -19,19 +24,87 @@ function App() {
         <Navbar />
         <main className="flex-1 overflow-y-auto bg-muted/30 p-6">
           <Suspense fallback={<LoadingScreen />}>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/feeds" element={<Feeds />} />
-              <Route path="/calls" element={<Calls />} />
-              <Route path="/search" element={<Search />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+            {children}
           </Suspense>
         </main>
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Routes>
+      {/* Login page - no layout */}
+      <Route path="/login" element={<Login />} />
+
+      {/* Protected routes with layout */}
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <Dashboard />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/feeds"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <Feeds />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/calls"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <Calls />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/search"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <Search />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <Settings />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Admin route - requires admin role */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute requireAdmin>
+            <AppLayout>
+              <Admin />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Catch all - redirect to home */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 

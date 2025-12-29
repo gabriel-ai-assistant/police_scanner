@@ -45,6 +45,12 @@ config.yaml
 .env.*.local
 conf/.env
 
+# Secrets (Firebase service account, etc.)
+secrets/
+!secrets/.gitkeep
+*.json.secret
+firebase-service-account.json
+
 # Database backups
 *.backup
 *.backup.*

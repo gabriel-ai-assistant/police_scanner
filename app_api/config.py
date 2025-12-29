@@ -31,6 +31,19 @@ class Settings(BaseSettings):
     MINIO_BUCKET: str = "feeds"
     MINIO_USE_SSL: bool = False
 
+    # Firebase Admin SDK
+    FIREBASE_SERVICE_ACCOUNT_PATH: str = "/opt/policescanner/secrets/firebase-service-account.json"
+
+    # Session cookies
+    SESSION_COOKIE_NAME: str = "scanner_session"
+    SESSION_COOKIE_SECURE: bool = True      # HTTPS only in production
+    SESSION_COOKIE_HTTPONLY: bool = True    # Not accessible via JavaScript
+    SESSION_COOKIE_SAMESITE: str = "lax"
+    SESSION_COOKIE_MAX_AGE: int = 604800    # 7 days in seconds
+
+    # Admin seeding - first login with this email becomes admin
+    ADMIN_EMAIL: str = ""
+
     class Config:
         env_file = ".env"
         case_sensitive = True

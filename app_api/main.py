@@ -5,7 +5,8 @@ import logging
 
 from config import settings
 from database import get_pool, close_pool
-from routers import health, calls, playlists, transcripts, analytics, geography, system
+from routers import health, calls, playlists, transcripts, analytics, geography, system, auth
+from auth.firebase import initialize_firebase
 
 
 # Configure logging
@@ -23,6 +24,13 @@ async def lifespan(app: FastAPI):
     logger.info("Starting up Police Scanner API...")
     await get_pool()
     logger.info("Database connection pool created")
+
+    # Initialize Firebase Auth
+    if initialize_firebase():
+        logger.info("Firebase Admin SDK initialized")
+    else:
+        logger.warning("Firebase Admin SDK not initialized - authentication disabled")
+
     yield
     # Shutdown
     logger.info("Shutting down Police Scanner API...")
@@ -48,6 +56,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(health.router, prefix="/api", tags=["Health"])
+app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
+app.include_router(auth.admin_router, prefix="/api/admin", tags=["Admin"])
 app.include_router(calls.router, prefix="/api/calls", tags=["Calls"])
 app.include_router(playlists.router, prefix="/api/playlists", tags=["Playlists"])
 app.include_router(transcripts.router, prefix="/api/transcripts", tags=["Transcripts"])

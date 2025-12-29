@@ -10,6 +10,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
+  withCredentials: true,  // Include cookies in requests for auth
 });
 
 /** Utility for other modules to check mock mode. */
