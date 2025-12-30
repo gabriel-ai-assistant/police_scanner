@@ -35,12 +35,18 @@ function Feeds() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
     },
+    onError: (error: Error) => {
+      alert(`Failed to subscribe: ${error.message}`);
+    },
   });
 
   const unsubscribeMutation = useMutation({
     mutationFn: (subscriptionId: string) => deleteSubscription(subscriptionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+    },
+    onError: (error: Error) => {
+      alert(`Failed to unsubscribe: ${error.message}`);
     },
   });
 

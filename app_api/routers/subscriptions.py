@@ -38,9 +38,11 @@ def transform_subscription_response(row: dict) -> dict:
     if 'id' in result and result['id']:
         result['id'] = str(result['id'])
     if 'user_id' in result and result['user_id']:
-        result['userId'] = str(result['user_id'])
+        result['user_id'] = str(result['user_id'])
+        result['userId'] = result['user_id']
     if 'playlist_uuid' in result and result['playlist_uuid']:
-        result['playlistUuid'] = str(result['playlist_uuid'])
+        result['playlist_uuid'] = str(result['playlist_uuid'])
+        result['playlistUuid'] = result['playlist_uuid']
 
     # Add camelCase versions
     if 'notifications_enabled' in result:
@@ -66,7 +68,8 @@ def transform_linked_group_response(row: dict) -> dict:
     if 'id' in result and result['id']:
         result['id'] = str(result['id'])
     if 'keyword_group_id' in result and result['keyword_group_id']:
-        result['keywordGroupId'] = str(result['keyword_group_id'])
+        result['keyword_group_id'] = str(result['keyword_group_id'])
+        result['keywordGroupId'] = result['keyword_group_id']
     if 'keyword_group_name' in result:
         result['keywordGroupName'] = result['keyword_group_name']
     if 'keyword_count' in result:

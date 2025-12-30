@@ -57,6 +57,9 @@ function KeywordGroups() {
       setNewGroupName('');
       setNewGroupDescription('');
     },
+    onError: (error: Error) => {
+      alert(`Failed to create group: ${error.message}`);
+    },
   });
 
   const cloneMutation = useMutation({
@@ -68,12 +71,18 @@ function KeywordGroups() {
       setNewGroupName('');
       setNewGroupDescription('');
     },
+    onError: (error: Error) => {
+      alert(`Failed to clone template: ${error.message}`);
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteKeywordGroup,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['keyword-groups'] });
+    },
+    onError: (error: Error) => {
+      alert(`Failed to delete group: ${error.message}`);
     },
   });
 

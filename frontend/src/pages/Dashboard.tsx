@@ -1,141 +1,264 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { useNavigate } from 'react-router-dom';
+import { Radio, FileText, Headphones, Bell, ChevronRight, FolderOpen } from 'lucide-react';
 
-import { getDashboardMetrics, getKeywordHits } from '../api/analytics';
-import { getCalls } from '../api/calls';
-import { getFeeds } from '../api/feeds';
-import { searchTranscripts } from '../api/transcripts';
-import CallTable from '../components/CallTable';
+import {
+  getDashboardStats,
+  getMyFeeds,
+  getRecentActivity,
+  getKeywordSummary,
+} from '../api/dashboard';
+import ActivityItem from '../components/ActivityItem';
 import { useRefreshInterval } from '../lib/useRefreshInterval';
 import ErrorState from '../components/ErrorState';
-import FeedList from '../components/FeedList';
 import LoadingScreen from '../components/LoadingScreen';
-import TranscriptViewer from '../components/TranscriptViewer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import { formatDate } from '../lib/dates';
 
 function Dashboard() {
+  const navigate = useNavigate();
   const refreshInterval = useRefreshInterval();
-  const metricsQuery = useQuery({ queryKey: ['dashboard', 'metrics'], queryFn: getDashboardMetrics, refetchInterval: refreshInterval });
-  const feedsQuery = useQuery({ queryKey: ['feeds'], queryFn: getFeeds, refetchInterval: refreshInterval });
-  const callsQuery = useQuery({ queryKey: ['calls', { limit: 5 }], queryFn: () => getCalls(), refetchInterval: refreshInterval });
-  const transcriptsQuery = useQuery({ queryKey: ['transcripts', 'recent'], queryFn: () => searchTranscripts(''), staleTime: 5 * 60 * 1000, refetchInterval: refreshInterval * 2 });
-  const keywordQuery = useQuery({ queryKey: ['keyword-hits'], queryFn: getKeywordHits, staleTime: 10 * 60 * 1000 });
 
-  const isLoading = metricsQuery.isLoading || feedsQuery.isLoading || callsQuery.isLoading || transcriptsQuery.isLoading || keywordQuery.isLoading;
-  const isError = metricsQuery.isError || feedsQuery.isError || callsQuery.isError || transcriptsQuery.isError || keywordQuery.isError;
+  // User-scoped queries
+  const statsQuery = useQuery({
+    queryKey: ['dashboard', 'stats'],
+    queryFn: getDashboardStats,
+    refetchInterval: refreshInterval,
+  });
+
+  const feedsQuery = useQuery({
+    queryKey: ['dashboard', 'my-feeds'],
+    queryFn: () => getMyFeeds(6),
+    refetchInterval: refreshInterval,
+  });
+
+  const activityQuery = useQuery({
+    queryKey: ['dashboard', 'recent-activity'],
+    queryFn: () => getRecentActivity(10),
+    refetchInterval: refreshInterval,
+  });
+
+  const keywordQuery = useQuery({
+    queryKey: ['dashboard', 'keyword-summary'],
+    queryFn: getKeywordSummary,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const isLoading =
+    statsQuery.isLoading ||
+    feedsQuery.isLoading ||
+    activityQuery.isLoading ||
+    keywordQuery.isLoading;
+
+  const isError =
+    statsQuery.isError ||
+    feedsQuery.isError ||
+    activityQuery.isError ||
+    keywordQuery.isError;
 
   const metricCards = useMemo(() => {
-    const metrics = metricsQuery.data;
+    const stats = statsQuery.data;
     return [
       {
-        label: 'Total Feeds',
-        value: metrics?.feedCount ?? 0,
-        helper: metrics ? `${metrics.activeFeeds} active` : '—'
+        label: 'My Feeds',
+        value: stats?.myFeeds ?? 0,
+        helper: 'subscribed',
+        icon: Radio,
       },
       {
-        label: 'Recent Calls (1h)',
-        value: metrics?.recentCalls ?? 0,
-        helper: 'monitored'
+        label: 'My Calls (1h)',
+        value: stats?.myCalls1h ?? 0,
+        helper: 'from subscribed feeds',
+        icon: Headphones,
       },
       {
-        label: 'Transcripts Today',
-        value: metrics?.transcriptsToday ?? 0,
-        helper: 'processed'
-      }
+        label: 'My Transcripts (24h)',
+        value: stats?.myTranscripts24h ?? 0,
+        helper: 'from subscribed feeds',
+        icon: FileText,
+      },
     ];
-  }, [metricsQuery.data]);
+  }, [statsQuery.data]);
 
   if (isLoading) {
     return <LoadingScreen />;
   }
 
   if (isError) {
-    return <ErrorState onRetry={() => {
-      metricsQuery.refetch();
-      feedsQuery.refetch();
-      callsQuery.refetch();
-      transcriptsQuery.refetch();
-      keywordQuery.refetch();
-    }} />;
+    return (
+      <ErrorState
+        onRetry={() => {
+          statsQuery.refetch();
+          feedsQuery.refetch();
+          activityQuery.refetch();
+          keywordQuery.refetch();
+        }}
+      />
+    );
   }
 
-  const feeds = feedsQuery.data ?? [];
-  const calls = callsQuery.data?.slice(0, 5) ?? [];
-  const transcripts = transcriptsQuery.data?.slice(0, 2) ?? [];
-  const keywordHits = keywordQuery.data ?? [];
+  const feeds = feedsQuery.data?.feeds ?? [];
+  const activities = activityQuery.data?.activities ?? [];
+  const keywordSummary = keywordQuery.data;
+  const hasSubscriptions = (statsQuery.data?.myFeeds ?? 0) > 0;
 
   return (
     <div className="space-y-6">
+      {/* Stats Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {metricCards.map((card) => (
           <Card key={card.label}>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardDescription>{card.label}</CardDescription>
-              <CardTitle className="text-3xl font-bold">{card.value}</CardTitle>
+              <card.icon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">{card.helper}</p>
+              <div className="text-3xl font-bold">{card.value}</div>
+              <p className="text-xs text-muted-foreground">{card.helper}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
+      {/* Main Grid */}
       <div className="grid gap-6 lg:grid-cols-3">
+        {/* My Feeds */}
         <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Active Feeds</CardTitle>
-            <CardDescription>Feeds currently monitored from Broadcastify.</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>My Feeds</CardTitle>
+              <CardDescription>Your subscribed Broadcastify feeds.</CardDescription>
+            </div>
+            {feeds.length > 0 && (
+              <Button variant="outline" size="sm" onClick={() => navigate('/subscriptions')}>
+                Manage
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
-            <FeedList feeds={feeds.slice(0, 6)} />
+            {feeds.length === 0 ? (
+              <div className="py-8 text-center">
+                <Radio className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground mb-4">No subscribed feeds yet.</p>
+                <Button onClick={() => navigate('/feeds')}>Browse Feeds</Button>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {feeds.map((feed) => (
+                  <div
+                    key={feed.id}
+                    className="flex flex-col rounded-lg border border-border bg-card p-4 shadow-sm cursor-pointer hover:bg-muted/40 transition-colors"
+                    onClick={() => navigate('/subscriptions')}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Radio className="h-4 w-4 text-primary" />
+                        <h3 className="text-base font-semibold truncate">{feed.name}</h3>
+                      </div>
+                      <Badge variant={feed.isActive ? 'default' : 'secondary'}>
+                        {feed.isActive ? 'Active' : 'Idle'}
+                      </Badge>
+                    </div>
+                    <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <dt className="text-muted-foreground">Listeners</dt>
+                        <dd className="font-medium">{feed.listeners.toLocaleString()}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground">Updated</dt>
+                        <dd className="font-medium">{feed.updatedAt ? formatDate(feed.updatedAt) : '—'}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
+        {/* Keyword Groups Summary */}
         <Card>
-          <CardHeader>
-            <CardTitle>Keyword Hits (24h)</CardTitle>
-            <CardDescription>Occurrences of configured alerts.</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Keyword Groups</CardTitle>
+              <CardDescription>Your configured keyword alerts.</CardDescription>
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/keyword-groups')}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </CardHeader>
-          <CardContent className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={keywordHits}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="keyword" stroke="hsl(var(--muted-foreground))" tickLine={false} axisLine={false} />
-                <YAxis stroke="hsl(var(--muted-foreground))" allowDecimals={false} tickLine={false} axisLine={false} />
-                <Tooltip
-                  cursor={{ fill: 'hsl(var(--accent) / 0.2)' }}
-                  contentStyle={{ backgroundColor: 'hsl(var(--background))', borderRadius: 8, border: '1px solid hsl(var(--border))' }}
-                />
-                <Bar dataKey="hits" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent>
+            {!keywordSummary || keywordSummary.groups.length === 0 ? (
+              <div className="py-6 text-center">
+                <FolderOpen className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground mb-3">No keyword groups yet.</p>
+                <Button variant="outline" size="sm" onClick={() => navigate('/keyword-groups')}>
+                  Create Group
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {keywordSummary.groups.map((group) => (
+                  <div
+                    key={group.name}
+                    className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Bell className={`h-4 w-4 ${group.isActive ? 'text-green-600' : 'text-muted-foreground'}`} />
+                      <span className="font-medium">{group.name}</span>
+                    </div>
+                    <Badge variant="secondary">{group.keywordCount} keywords</Badge>
+                  </div>
+                ))}
+                <div className="pt-2 text-center">
+                  <p className="text-xs text-muted-foreground">
+                    {keywordSummary.totalKeywords} total keywords configured
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">{keywordSummary.message}</p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Calls</CardTitle>
-            <CardDescription>Latest dispatch activity across active feeds.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <CallTable calls={calls} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Transcripts</CardTitle>
-            <CardDescription>Whisper transcripts with highlighted keywords.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {transcripts.map((transcript) => (
-              <TranscriptViewer key={transcript.id} transcript={transcript} />
-            ))}
-          </CardContent>
-        </Card>
-      </div>
+      {/* Recent Activity */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>Latest calls and transcripts from your subscribed feeds.</CardDescription>
+          </div>
+          {activities.length > 0 && (
+            <Button variant="ghost" size="icon" onClick={() => navigate('/calls')}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent>
+          {!hasSubscriptions ? (
+            <div className="py-8 text-center">
+              <Headphones className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-4">Subscribe to feeds to see activity here.</p>
+              <Button onClick={() => navigate('/feeds')}>Browse Feeds</Button>
+            </div>
+          ) : activities.length === 0 ? (
+            <div className="py-8 text-center">
+              <p className="text-muted-foreground">No recent activity from your feeds.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {activities.map((activity) => (
+                <ActivityItem key={activity.id} activity={activity} />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

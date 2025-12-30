@@ -56,7 +56,13 @@ export function formatTime(dateValue: string | null | undefined): string {
       console.warn('Invalid time value:', dateValue);
       return 'Invalid Time';
     }
-    return date.toLocaleTimeString();
+    // Include timezone abbreviation (e.g., "2:30:00 PM CST")
+    return date.toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      timeZoneName: 'short',
+    });
   } catch (error) {
     console.error('Time parsing error:', error, dateValue);
     return 'Invalid Time';

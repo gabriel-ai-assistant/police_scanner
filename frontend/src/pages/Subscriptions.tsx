@@ -26,12 +26,18 @@ function Subscriptions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
     },
+    onError: (error: Error) => {
+      alert(`Failed to update subscription: ${error.message}`);
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteSubscription,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+    },
+    onError: (error: Error) => {
+      alert(`Failed to delete subscription: ${error.message}`);
     },
   });
 

@@ -62,6 +62,9 @@ function KeywordGroupDetail() {
       queryClient.invalidateQueries({ queryKey: ['keyword-group', groupId] });
       queryClient.invalidateQueries({ queryKey: ['keyword-groups'] });
     },
+    onError: (error: Error) => {
+      alert(`Failed to update group: ${error.message}`);
+    },
   });
 
   const deleteGroupMutation = useMutation({
@@ -69,6 +72,9 @@ function KeywordGroupDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['keyword-groups'] });
       navigate('/keyword-groups');
+    },
+    onError: (error: Error) => {
+      alert(`Failed to delete group: ${error.message}`);
     },
   });
 
@@ -81,6 +87,9 @@ function KeywordGroupDetail() {
       setNewKeyword('');
       setShowAddKeyword(false);
     },
+    onError: (error: Error) => {
+      alert(`Failed to add keyword: ${error.message}`);
+    },
   });
 
   const updateKeywordMutation = useMutation({
@@ -89,6 +98,9 @@ function KeywordGroupDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['keyword-group', groupId] });
     },
+    onError: (error: Error) => {
+      alert(`Failed to update keyword: ${error.message}`);
+    },
   });
 
   const deleteKeywordMutation = useMutation({
@@ -96,6 +108,9 @@ function KeywordGroupDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['keyword-group', groupId] });
       queryClient.invalidateQueries({ queryKey: ['keyword-groups'] });
+    },
+    onError: (error: Error) => {
+      alert(`Failed to delete keyword: ${error.message}`);
     },
   });
 
@@ -108,6 +123,9 @@ function KeywordGroupDetail() {
       setBulkKeywords('');
       setShowBulkImport(false);
       alert(`Imported ${result.imported} keywords. Skipped ${result.skipped} duplicates.${result.errors.length ? '\nErrors: ' + result.errors.join(', ') : ''}`);
+    },
+    onError: (error: Error) => {
+      alert(`Failed to import keywords: ${error.message}`);
     },
   });
 

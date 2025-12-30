@@ -56,6 +56,9 @@ function SubscriptionDetail() {
       queryClient.invalidateQueries({ queryKey: ['subscription', subscriptionId] });
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
     },
+    onError: (error: Error) => {
+      alert(`Failed to update subscription: ${error.message}`);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -63,6 +66,9 @@ function SubscriptionDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
       navigate('/subscriptions');
+    },
+    onError: (error: Error) => {
+      alert(`Failed to delete subscription: ${error.message}`);
     },
   });
 
@@ -74,6 +80,9 @@ function SubscriptionDetail() {
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
       setSelectedGroupId('');
     },
+    onError: (error: Error) => {
+      alert(`Failed to link keyword group: ${error.message}`);
+    },
   });
 
   const unlinkMutation = useMutation({
@@ -81,6 +90,9 @@ function SubscriptionDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subscription-groups', subscriptionId] });
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+    },
+    onError: (error: Error) => {
+      alert(`Failed to unlink keyword group: ${error.message}`);
     },
   });
 

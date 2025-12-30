@@ -48,7 +48,8 @@ def transform_group_response(row: dict) -> dict:
     if 'id' in result and result['id']:
         result['id'] = str(result['id'])
     if 'user_id' in result and result['user_id']:
-        result['userId'] = str(result['user_id'])
+        result['user_id'] = str(result['user_id'])
+        result['userId'] = result['user_id']
     if 'is_template' in result:
         result['isTemplate'] = result['is_template']
     if 'is_active' in result:
@@ -72,7 +73,8 @@ def transform_keyword_response(row: dict) -> dict:
     if 'id' in result and result['id']:
         result['id'] = str(result['id'])
     if 'keyword_group_id' in result and result['keyword_group_id']:
-        result['keywordGroupId'] = str(result['keyword_group_id'])
+        result['keyword_group_id'] = str(result['keyword_group_id'])
+        result['keywordGroupId'] = result['keyword_group_id']
     if 'match_type' in result:
         result['matchType'] = result['match_type']
     if 'is_active' in result:
@@ -88,9 +90,11 @@ def transform_linked_subscription_response(row: dict) -> dict:
     result = dict(row)
 
     if 'subscription_id' in result and result['subscription_id']:
-        result['subscriptionId'] = str(result['subscription_id'])
+        result['subscription_id'] = str(result['subscription_id'])
+        result['subscriptionId'] = result['subscription_id']
     if 'playlist_uuid' in result and result['playlist_uuid']:
-        result['playlistUuid'] = str(result['playlist_uuid'])
+        result['playlist_uuid'] = str(result['playlist_uuid'])
+        result['playlistUuid'] = result['playlist_uuid']
     if 'playlist_name' in result:
         result['playlistName'] = result['playlist_name']
     if 'created_at' in result and result['created_at']:
