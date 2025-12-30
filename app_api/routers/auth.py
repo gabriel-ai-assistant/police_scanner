@@ -4,6 +4,7 @@ Authentication router for Police Scanner API.
 Handles Firebase authentication, session management, and user operations.
 """
 
+import json
 import logging
 from typing import Optional, List
 from datetime import datetime
@@ -79,6 +80,9 @@ async def log_auth_event(
         # Get user agent
         user_agent = request.headers.get("user-agent", "")[:500]  # Limit length
 
+        # Serialize metadata dict to JSON string for JSONB column
+        metadata_json = json.dumps(metadata) if metadata else None
+
         async with pool.acquire() as conn:
             await conn.execute(
                 """
@@ -89,7 +93,7 @@ async def log_auth_event(
                 event_type,
                 ip_address,
                 user_agent,
-                metadata
+                metadata_json
             )
     except Exception as e:
         logger.error(f"Failed to log auth event: {e}")

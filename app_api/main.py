@@ -5,7 +5,7 @@ import logging
 
 from config import settings
 from database import get_pool, close_pool
-from routers import health, calls, playlists, transcripts, analytics, geography, system, auth
+from routers import health, calls, playlists, transcripts, analytics, geography, system, auth, subscriptions, keyword_groups
 from auth.firebase import initialize_firebase
 
 
@@ -64,6 +64,8 @@ app.include_router(transcripts.router, prefix="/api/transcripts", tags=["Transcr
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
 app.include_router(geography.router, prefix="/api/geography", tags=["Geography"])
 app.include_router(system.router, prefix="/api/system", tags=["System"])
+app.include_router(subscriptions.router, prefix="/api/subscriptions", tags=["Subscriptions"])
+app.include_router(keyword_groups.router, prefix="/api/keyword-groups", tags=["Keyword Groups"])
 
 
 @app.get("/")

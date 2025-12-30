@@ -11,6 +11,10 @@ import Search from './pages/Search';
 import Settings from './pages/Settings';
 import Admin from './pages/Admin';
 import Login from './pages/Login';
+import Subscriptions from './pages/Subscriptions';
+import SubscriptionDetail from './pages/SubscriptionDetail';
+import KeywordGroups from './pages/KeywordGroups';
+import KeywordGroupDetail from './pages/KeywordGroupDetail';
 import { ProtectedRoute } from './auth';
 
 /**
@@ -85,6 +89,46 @@ function App() {
           <ProtectedRoute>
             <AppLayout>
               <Settings />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/subscriptions"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <Subscriptions />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/subscriptions/:id"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <SubscriptionDetail />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/keyword-groups"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <KeywordGroups />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/keyword-groups/:id"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <KeywordGroupDetail />
             </AppLayout>
           </ProtectedRoute>
         }
