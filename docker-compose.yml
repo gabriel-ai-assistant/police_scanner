@@ -26,6 +26,35 @@ services:
         max-file: "3"
 
   # =========================================================
+  # DATABASE
+  # =========================================================
+  postgres:
+    image: postgres:17
+    container_name: scanner-postgres
+    env_file: [ .env ]
+    environment:
+      POSTGRES_USER: ${LOCAL_DB_USER:-scan}
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD}
+      POSTGRES_DB: ${LOCAL_DB_NAME:-scanner}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./backups:/backups
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${LOCAL_DB_USER:-scan} -d ${LOCAL_DB_NAME:-scanner}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # =========================================================
   # SIGNAL MESSAGING SERVICE
   # =========================================================
   signal-api:
@@ -236,6 +265,8 @@ services:
 # VOLUMES
 # ===========================================================
 volumes:
+  postgres-data:
+    driver: local
   redisinsight-data:
     driver: local
   signal-cli-data:
