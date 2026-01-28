@@ -6,6 +6,11 @@ services:
     image: redis:7
     ports:
       - "6379:6379"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
 
   meilisearch:
     image: getmeili/meilisearch:v1.11
@@ -14,6 +19,39 @@ services:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
     ports:
       - "7700:7700"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # =========================================================
+  # SIGNAL MESSAGING SERVICE
+  # =========================================================
+  signal-api:
+    image: bbernhard/signal-cli-rest-api:latest
+    container_name: scanner-signal-api
+    environment:
+      - MODE=native
+      # Note: We poll via scheduler instead of using callbacks (not supported in native mode)
+    volumes:
+      - ./data/signal-cli:/home/.local/share/signal-cli
+    tmpfs:
+      - /tmp:size=500M
+    ports:
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/about"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
 
   # =========================================================
   # APPLICATIONS
@@ -24,10 +62,28 @@ services:
     depends_on:
       redis:
         condition: service_started
+      signal-api:
+        condition: service_healthy
+    environment:
+      # Signal API configuration
+      SIGNAL_API_URL: http://signal-api:8080
+      SIGNAL_SENDER_NUMBER: ${SIGNAL_SENDER_NUMBER:-}
+      # SMTP configuration
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-Scanner Alerts <alerts@example.com>}
+      # Webhook URL for Signal message forwarding
+      API_WEBHOOK_URL: http://scanner-api:8000/api/webhooks/signal/receive
     volumes:
       - ./shared_bcfy:/app/shared_bcfy
     restart: unless-stopped
-
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
 
   app_transcription:
     build: ./app_transcribe
@@ -38,6 +94,11 @@ services:
     volumes:
       - ./shared_bcfy:/app/shared_bcfy:ro
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
 
   # ===========================================================
   # API SERVICE
@@ -85,6 +146,11 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
 
   # ===========================================================
   # FRONTEND SERVICE
@@ -113,6 +179,11 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
 
   # ===========================================================
   # MONITORING UIS
@@ -137,6 +208,11 @@ services:
       - redis
       - app_transcription
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
 
   redisinsight:
     image: redis/redisinsight:latest
@@ -150,10 +226,17 @@ services:
     depends_on:
       - redis
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
 
 # ===========================================================
 # VOLUMES
 # ===========================================================
 volumes:
   redisinsight-data:
+    driver: local
+  signal-cli-data:
     driver: local
