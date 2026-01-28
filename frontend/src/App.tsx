@@ -9,12 +9,14 @@ import Feeds from './pages/Feeds';
 import Calls from './pages/Calls';
 import Search from './pages/Search';
 import Settings from './pages/Settings';
+import NotificationSettings from './pages/NotificationSettings';
 import Admin from './pages/Admin';
 import Login from './pages/Login';
 import Subscriptions from './pages/Subscriptions';
 import SubscriptionDetail from './pages/SubscriptionDetail';
 import KeywordGroups from './pages/KeywordGroups';
 import KeywordGroupDetail from './pages/KeywordGroupDetail';
+import Map from './pages/Map';
 import { ProtectedRoute } from './auth';
 
 /**
@@ -84,11 +86,31 @@ function App() {
         }
       />
       <Route
+        path="/map"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <Map />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/settings"
         element={
           <ProtectedRoute>
             <AppLayout>
               <Settings />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings/notifications"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <NotificationSettings />
             </AppLayout>
           </ProtectedRoute>
         }
