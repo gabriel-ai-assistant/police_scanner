@@ -83,8 +83,8 @@ export async function listKeywordGroups(includeTemplates = false): Promise<Keywo
     });
     return response.data;
   } catch (error) {
-    console.warn('Using mock keyword groups due to API error', error);
-    return { groups: mockGroups, total: mockGroups.length };
+    console.error('Failed to fetch keyword groups', error);
+    throw error;
   }
 }
 
@@ -100,8 +100,8 @@ export async function listTemplates(): Promise<TemplateListResponse> {
     const response = await api.get<TemplateListResponse>('/keyword-groups/templates');
     return response.data;
   } catch (error) {
-    console.warn('Using mock templates due to API error', error);
-    return { templates: mockTemplates, total: mockTemplates.length };
+    console.error('Failed to fetch templates', error);
+    throw error;
   }
 }
 
