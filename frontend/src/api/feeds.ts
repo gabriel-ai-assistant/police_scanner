@@ -1,5 +1,5 @@
 // src/api/feeds.ts
-import { api } from '@/lib/api';
+import { api, isMock } from '@/lib/api';
 
 export type Feed = {
   uuid: string;
@@ -22,10 +22,8 @@ const MOCK_FEEDS: Feed[] = [
   { uuid: "feed-3", name: "Prosper Police / Fire", listeners: 74, sync: false },
 ];
 
-const isMock = import.meta.env.VITE_MOCK === '1';
-
 export async function fetchTopFeeds(top = 25): Promise<Feed[]> {
-  if (isMock) return MOCK_FEEDS.slice(0, top);
+  if (isMock()) return MOCK_FEEDS.slice(0, top);
   try {
     const res = await api.get('/playlists', { params: { limit: top } });
     return res.data ?? [];

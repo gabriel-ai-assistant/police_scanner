@@ -9,7 +9,7 @@ to the transcription worker.
 import asyncio
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any
 
 from celery import Celery
@@ -43,7 +43,7 @@ async def get_pending_transcriptions(conn, batch_size: int, max_age_hours: int) 
     - Not too old (within max_age_hours)
     - No active error in processing_state (or error with retries available)
     """
-    cutoff_time = datetime.utcnow() - timedelta(hours=max_age_hours)
+    cutoff_time = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
 
     rows = await conn.fetch("""
         SELECT

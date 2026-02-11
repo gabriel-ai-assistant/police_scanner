@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from datetime import datetime
+from datetime import datetime, timezone
 import asyncpg
 
 from database import get_pool
@@ -30,7 +30,7 @@ async def health_check():
         database=db_status,
         redis=redis_status,
         version="1.0.0",
-        timestamp=datetime.utcnow()
+        timestamp=datetime.now(timezone.utc)
     )
 
 

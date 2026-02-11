@@ -30,12 +30,18 @@ logger = logging.getLogger(__name__)
 
 # Database pool
 _pool: Optional[asyncpg.Pool] = None
+_pool_lock = asyncio.Lock()
 
 
 async def get_pool() -> asyncpg.Pool:
-    """Get or create database connection pool."""
+    """Get or create database connection pool (async-safe with double-check lock)."""
     global _pool
-    if _pool is None:
+    if _pool is not None:
+        return _pool
+    async with _pool_lock:
+        # Double-check after acquiring lock to avoid duplicate pool creation
+        if _pool is not None:
+            return _pool
         _pool = await asyncpg.create_pool(
             host=settings.PGHOST,
             port=settings.PGPORT,

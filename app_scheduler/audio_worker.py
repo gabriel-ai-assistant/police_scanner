@@ -53,8 +53,8 @@ async def recover_stuck_jobs():
             UPDATE bcfy_calls_raw
             SET status = 'pending', picked_at = NULL
             WHERE status = 'processing'
-              AND picked_at < NOW() - INTERVAL '$1 minutes'
-        """.replace("$1", str(STUCK_JOB_TIMEOUT_MIN)))
+              AND picked_at < NOW() - make_interval(mins => $1)
+        """, STUCK_JOB_TIMEOUT_MIN)
         rows = int(result.split()[-1])
         if rows > 0:
             log.warning(f"Recovered {rows} stuck job(s) (processing > {STUCK_JOB_TIMEOUT_MIN}min)")

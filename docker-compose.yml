@@ -6,6 +6,12 @@ services:
     image: redis:7
     ports:
       - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     logging:
       driver: "json-file"
       options:
@@ -19,6 +25,7 @@ services:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
     ports:
       - "7700:7700"
+    restart: unless-stopped
     logging:
       driver: "json-file"
       options:
@@ -349,5 +356,4 @@ volumes:
   postgres-data:
     driver: local
   redisinsight-data:
-    driver: local
     driver: local

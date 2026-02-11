@@ -126,8 +126,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     const response = await api.get<DashboardStats>('/dashboard/stats');
     return response.data;
   } catch (error) {
-    console.warn('Using mock dashboard stats due to API error', error);
-    return mockStats;
+    throw error;
   }
 }
 
@@ -145,8 +144,7 @@ export async function getMyFeeds(limit: number = 6): Promise<MyFeedsResponse> {
     });
     return response.data;
   } catch (error) {
-    console.warn('Using mock my feeds due to API error', error);
-    return mockFeeds;
+    throw error;
   }
 }
 
@@ -164,8 +162,7 @@ export async function getRecentCalls(limit: number = 10): Promise<RecentCallsRes
     });
     return response.data;
   } catch (error) {
-    console.warn('Using mock recent calls due to API error', error);
-    return mockCalls;
+    throw error;
   }
 }
 
@@ -183,8 +180,7 @@ export async function getRecentTranscripts(limit: number = 10): Promise<RecentTr
     });
     return response.data;
   } catch (error) {
-    console.warn('Using mock recent transcripts due to API error', error);
-    return mockTranscripts;
+    throw error;
   }
 }
 
@@ -200,8 +196,7 @@ export async function getKeywordSummary(): Promise<KeywordSummaryResponse> {
     const response = await api.get<KeywordSummaryResponse>('/dashboard/keyword-summary');
     return response.data;
   } catch (error) {
-    console.warn('Using mock keyword summary due to API error', error);
-    return mockKeywordSummary;
+    throw error;
   }
 }
 
@@ -219,8 +214,7 @@ export async function getRecentActivity(limit: number = 10): Promise<RecentActiv
     });
     return response.data;
   } catch (error) {
-    console.warn('Using mock recent activity due to API error', error);
-    return mockActivities;
+    throw error;
   }
 }
 

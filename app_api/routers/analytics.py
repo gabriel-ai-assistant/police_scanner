@@ -172,11 +172,7 @@ async def get_keyword_hits(
 ):
     """Get keyword hit counts (placeholder - needs keywords table)."""
     # TODO: Implement when keywords table/system is available
-    return [
-        KeywordHit(keyword="pursuit", count=12),
-        KeywordHit(keyword="accident", count=9),
-        KeywordHit(keyword="alarm", count=7),
-    ]
+    return []
 
 
 @router.get("/transcription-quality", response_model=QualityDistribution)

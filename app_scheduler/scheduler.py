@@ -15,7 +15,7 @@ import os
 import signal
 import logging
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from aiohttp import web
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from dotenv import load_dotenv
@@ -69,7 +69,7 @@ def _touch_health_file():
     """Touch health file to signal liveness to Docker / external probes."""
     try:
         with open(HEALTH_FILE, "w") as f:
-            f.write(datetime.utcnow().isoformat())
+            f.write(datetime.now(timezone.utc).isoformat())
     except Exception:
         pass  # Non-critical
 
@@ -95,7 +95,7 @@ async def _health_handler(request):
     return web.json_response({
         "status": "healthy",
         "active_jobs": _active_jobs,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     })
 
 
@@ -172,6 +172,29 @@ async def job_dispatch_transcriptions():
     _touch_health_file()
 
 # -----------------------------------------------------------------
+# Task: Rotate system_logs (delete entries older than 30 days)
+# -----------------------------------------------------------------
+async def job_rotate_system_logs():
+    """Delete old system_logs entries to prevent unbounded table growth."""
+    if _is_shutting_down():
+        return
+    try:
+        from db_pool import get_connection, release_connection
+        conn = await get_connection()
+        try:
+            result = await conn.execute(
+                "DELETE FROM system_logs WHERE created_at < NOW() - INTERVAL '30 days'"
+            )
+            rows = int(result.split()[-1])
+            if rows > 0:
+                log.info(f"🗑️  Rotated {rows} old system_logs entries")
+        finally:
+            await release_connection(conn)
+    except Exception as e:
+        log.error(f"❌ Log rotation failed: {e}")
+    _touch_health_file()
+
+# -----------------------------------------------------------------
 # Scheduler Setup
 # -----------------------------------------------------------------
 async def main():
@@ -198,6 +221,9 @@ async def main():
     # ------ Schedule jobs ------
     # Daily refresh of cached metadata
     sched.add_job(job_refresh_common, "interval", hours=24, id="refresh_common")
+
+    # Daily log rotation — delete system_logs older than 30 days
+    sched.add_job(job_rotate_system_logs, "interval", hours=24, id="rotate_system_logs")
 
     # Ingest calls every 10 seconds (with concurrency control)
     sched.add_job(job_run_ingest, "interval", seconds=10, id="run_ingest",

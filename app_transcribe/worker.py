@@ -13,7 +13,7 @@ import logging
 import re
 import time
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 
 import psycopg2
@@ -318,7 +318,7 @@ def index_to_meilisearch(transcript_id: int, call_uid: str, text: str, language:
             "call_uid": call_uid,
             "text": text,
             "language": language,
-            "indexed_at": datetime.utcnow().isoformat()
+            "indexed_at": datetime.now(timezone.utc).isoformat()
         }])
         log.info(f"Indexed transcript {transcript_id} in MeiliSearch")
     except Exception as e:

@@ -1,6 +1,6 @@
 import os, psycopg2, boto3, tempfile, re, logging
 from faster_whisper import WhisperModel
-from datetime import datetime
+from datetime import datetime, timezone
 from botocore.exceptions import ClientError
 
 # Configure logging
@@ -8,11 +8,11 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger(__name__)
 
 DB = {
-    "host": os.getenv("DB_HOST", "db"),
-    "port": "5432",
-    "dbname": "scanner",
-    "user": "scanner",
-    "password": "scanner",
+    "host": os.getenv("PGHOST", "db"),
+    "port": os.getenv("PGPORT", "5432"),
+    "dbname": os.getenv("PGDATABASE", "scanner"),
+    "user": os.getenv("PGUSER", "scanner"),
+    "password": os.getenv("PGPASSWORD", "scanner"),
 }
 
 BUCKET_PATH = os.getenv("AUDIO_BUCKET_PATH", "calls")
@@ -87,7 +87,7 @@ def mark_processed(cur, call_id, success, error=None):
         UPDATE bcfy_calls_raw
         SET processed=%s, last_attempt=%s, error=%s
         WHERE id=%s;
-    """, (success, datetime.utcnow(), error, call_id))
+    """, (success, datetime.now(timezone.utc), error, call_id))
 
 def transcribe_file(call_id, s3_uri):
     bucket, key = s3_uri.replace("s3://", "").split("/", 1)
