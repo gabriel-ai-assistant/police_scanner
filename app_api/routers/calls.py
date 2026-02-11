@@ -5,6 +5,8 @@ import asyncpg
 
 from database import get_pool
 from models.calls import CallMetadata, HourlyStats, FeedStats
+from models.auth import CurrentUser
+from auth.dependencies import require_auth
 
 router = APIRouter()
 
@@ -32,6 +34,7 @@ async def list_calls(
     tg_id: Optional[int] = Query(None),
     limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0),
+    user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """List recent calls with optional filtering."""
@@ -61,6 +64,7 @@ async def list_calls(
 @router.get("/{call_uid}", response_model=CallMetadata)
 async def get_call(
     call_uid: str,
+    user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get a specific call by UID."""
@@ -78,6 +82,7 @@ async def get_call(
 
 @router.get("/stats/hourly", response_model=List[HourlyStats])
 async def hourly_call_stats(
+    user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get hourly call volume for the last 24 hours."""
@@ -99,6 +104,7 @@ async def hourly_call_stats(
 
 @router.get("/stats/by-feed", response_model=List[FeedStats])
 async def feed_stats(
+    user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get call statistics grouped by feed."""

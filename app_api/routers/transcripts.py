@@ -5,6 +5,8 @@ import json
 
 from database import get_pool
 from models.transcripts import Transcript, TranscriptSearchResult
+from models.auth import CurrentUser
+from auth.dependencies import require_auth
 
 router = APIRouter()
 
@@ -63,6 +65,7 @@ async def list_transcripts(
     limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     min_confidence: Optional[float] = Query(None, ge=0, le=1),
+    user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """List recent transcripts."""
@@ -89,6 +92,7 @@ async def search_transcripts(
     q: str = Query("", min_length=0),
     limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0),
+    user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Full-text search transcripts."""
@@ -126,6 +130,7 @@ async def search_transcripts(
 @router.get("/{transcript_id}", response_model=Transcript)
 async def get_transcript(
     transcript_id: int,
+    user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get a specific transcript."""

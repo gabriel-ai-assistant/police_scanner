@@ -15,6 +15,8 @@ from models.locations import (
     Location, LocationWithContext, LocationListResponse,
     HeatmapResponse, HeatmapPoint
 )
+from models.auth import CurrentUser
+from auth.dependencies import require_auth
 
 router = APIRouter()
 
@@ -37,6 +39,7 @@ async def list_locations(
     hours: Optional[int] = Query(None, ge=1, le=720, description="Locations from last N hours"),
     limit: int = Query(500, ge=1, le=5000),
     offset: int = Query(0, ge=0),
+    user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """
@@ -119,6 +122,7 @@ async def get_heatmap(
     feed_id: Optional[UUID] = Query(None, description="Filter by playlist/feed UUID"),
     hours: int = Query(24, ge=1, le=720, description="Time window in hours"),
     grid_precision: int = Query(3, ge=2, le=5, description="Grid precision (decimals)"),
+    user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """
@@ -197,6 +201,7 @@ async def get_heatmap(
 @router.get("/{location_id}", response_model=LocationWithContext)
 async def get_location(
     location_id: UUID,
+    user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get a single location with full context."""
@@ -230,6 +235,7 @@ async def get_location(
 async def get_location_stats(
     feed_id: Optional[UUID] = Query(None, description="Filter by playlist/feed UUID"),
     hours: int = Query(24, ge=1, le=720, description="Time window in hours"),
+    user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get summary statistics for locations."""

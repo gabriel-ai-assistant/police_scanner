@@ -9,6 +9,8 @@ from models.analytics import (
     QualityDistribution, ApiMetricsSummary
 )
 from models.calls import CallMetadata
+from models.auth import CurrentUser
+from auth.dependencies import require_auth
 
 router = APIRouter()
 
@@ -37,6 +39,7 @@ def transform_dashboard_metrics(metrics: DashboardMetrics) -> Dict[str, Any]:
 
 @router.get("/dashboard")
 async def get_dashboard_metrics(
+    user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get comprehensive dashboard metrics."""
@@ -116,6 +119,7 @@ async def get_dashboard_metrics(
 @router.get("/hourly", response_model=List[HourlyPoint])
 async def get_hourly_activity(
     hours: int = Query(24, ge=1, le=168),
+    user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get hourly call activity."""
@@ -139,6 +143,7 @@ async def get_hourly_activity(
 async def get_top_talkgroups(
     limit: int = Query(10, ge=1, le=100),
     period: str = Query("24h"),
+    user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get top active talkgroups."""
@@ -168,6 +173,7 @@ async def get_top_talkgroups(
 @router.get("/keywords", response_model=List[KeywordHit])
 async def get_keyword_hits(
     limit: int = Query(10, ge=1, le=100),
+    user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get keyword hit counts (placeholder - needs keywords table)."""
@@ -177,6 +183,7 @@ async def get_keyword_hits(
 
 @router.get("/transcription-quality", response_model=QualityDistribution)
 async def get_transcription_quality(
+    user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get transcription quality distribution."""

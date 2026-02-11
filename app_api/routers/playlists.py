@@ -6,6 +6,8 @@ import uuid as uuid_lib
 
 from database import get_pool
 from models.playlists import Playlist, PlaylistUpdate, PlaylistStats
+from models.auth import CurrentUser
+from auth.dependencies import require_auth, require_admin
 
 router = APIRouter()
 
@@ -46,6 +48,7 @@ async def list_playlists(
     sync_only: bool = Query(False),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
+    user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """List all playlists."""
@@ -68,6 +71,7 @@ async def list_playlists(
 @router.get("/{playlist_uuid}", response_model=Playlist)
 async def get_playlist(
     playlist_uuid: str,
+    user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get a specific playlist."""
@@ -92,6 +96,7 @@ async def get_playlist(
 async def update_playlist(
     playlist_uuid: str,
     payload: PlaylistUpdate,
+    admin: CurrentUser = Depends(require_admin),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Update playlist sync status."""
@@ -115,6 +120,7 @@ async def update_playlist(
 
 @router.get("/stats/summary", response_model=PlaylistStats)
 async def playlist_stats(
+    user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get playlist statistics."""

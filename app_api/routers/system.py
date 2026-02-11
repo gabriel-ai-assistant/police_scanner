@@ -7,6 +7,8 @@ from models.system import (
     SystemLog, ProcessingStateSummary
 )
 from models.analytics import ApiMetricsSummary
+from models.auth import CurrentUser
+from auth.dependencies import require_admin
 
 router = APIRouter()
 
@@ -17,6 +19,7 @@ async def get_system_logs(
     severity: Optional[str] = Query(None),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
+    admin: CurrentUser = Depends(require_admin),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get recent system logs."""
@@ -45,6 +48,7 @@ async def get_system_logs(
 
 @router.get("/processing-state", response_model=ProcessingStateSummary)
 async def get_processing_state(
+    admin: CurrentUser = Depends(require_admin),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get processing pipeline state summary."""
@@ -74,6 +78,7 @@ async def get_processing_state(
 
 @router.get("/api-metrics", response_model=ApiMetricsSummary)
 async def get_api_metrics(
+    admin: CurrentUser = Depends(require_admin),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get Broadcastify API metrics."""
@@ -100,6 +105,7 @@ async def get_api_metrics(
 
 @router.get("/status")
 async def get_system_status(
+    admin: CurrentUser = Depends(require_admin),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get detailed system status."""

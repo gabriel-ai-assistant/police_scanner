@@ -7,6 +7,8 @@ from models.geography import (
     Country, State, County, CountrySyncUpdate,
     StateSyncUpdate, CountySyncUpdate
 )
+from models.auth import CurrentUser
+from auth.dependencies import require_admin
 
 router = APIRouter()
 
@@ -58,6 +60,7 @@ async def get_country(
 async def update_country(
     coid: int,
     payload: CountrySyncUpdate,
+    admin: CurrentUser = Depends(require_admin),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Update country sync status."""
@@ -127,6 +130,7 @@ async def get_state(
 async def update_state(
     stid: int,
     payload: StateSyncUpdate,
+    admin: CurrentUser = Depends(require_admin),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Update state sync status."""
@@ -196,6 +200,7 @@ async def get_county(
 async def update_county(
     cntid: int,
     payload: CountySyncUpdate,
+    admin: CurrentUser = Depends(require_admin),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Update county sync status."""
