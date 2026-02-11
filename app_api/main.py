@@ -1,12 +1,13 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 
 from config import settings
 from database import get_pool, close_pool
-from routers import health, calls, playlists, transcripts, analytics, geography, system, auth, subscriptions, keyword_groups, dashboard, ratings, notifications, webhooks, locations
+from routers import health, calls, playlists, transcripts, analytics, geography, system, auth, subscriptions, keyword_groups, dashboard, ratings, locations
 from auth.firebase import initialize_firebase
+from auth.dependencies import require_auth
 
 
 # Configure logging
@@ -54,23 +55,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Auth dependency for protected routes
+_auth = [Depends(require_auth)]
+
 # Include routers
+# Public routes (no auth required)
 app.include_router(health.router, prefix="/api", tags=["Health"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
-app.include_router(auth.admin_router, prefix="/api/admin", tags=["Admin"])
-app.include_router(calls.router, prefix="/api/calls", tags=["Calls"])
-app.include_router(playlists.router, prefix="/api/playlists", tags=["Playlists"])
-app.include_router(transcripts.router, prefix="/api/transcripts", tags=["Transcripts"])
-app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
-app.include_router(geography.router, prefix="/api/geography", tags=["Geography"])
-app.include_router(system.router, prefix="/api/system", tags=["System"])
-app.include_router(subscriptions.router, prefix="/api/subscriptions", tags=["Subscriptions"])
-app.include_router(keyword_groups.router, prefix="/api/keyword-groups", tags=["Keyword Groups"])
-app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
-app.include_router(ratings.router, prefix="/api/ratings", tags=["Ratings"])
-app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])
-app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
-app.include_router(locations.router, prefix="/api/locations", tags=["Locations"])
+
+# Protected routes (require valid Firebase session)
+app.include_router(auth.admin_router, prefix="/api/admin", tags=["Admin"], dependencies=_auth)
+app.include_router(calls.router, prefix="/api/calls", tags=["Calls"], dependencies=_auth)
+app.include_router(playlists.router, prefix="/api/playlists", tags=["Playlists"], dependencies=_auth)
+app.include_router(transcripts.router, prefix="/api/transcripts", tags=["Transcripts"], dependencies=_auth)
+app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"], dependencies=_auth)
+app.include_router(geography.router, prefix="/api/geography", tags=["Geography"], dependencies=_auth)
+app.include_router(system.router, prefix="/api/system", tags=["System"], dependencies=_auth)
+app.include_router(subscriptions.router, prefix="/api/subscriptions", tags=["Subscriptions"], dependencies=_auth)
+app.include_router(keyword_groups.router, prefix="/api/keyword-groups", tags=["Keyword Groups"], dependencies=_auth)
+app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"], dependencies=_auth)
+app.include_router(ratings.router, prefix="/api/ratings", tags=["Ratings"], dependencies=_auth)
+app.include_router(locations.router, prefix="/api/locations", tags=["Locations"], dependencies=_auth)
 
 
 @app.get("/")
