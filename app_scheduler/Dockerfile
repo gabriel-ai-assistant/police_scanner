@@ -8,7 +8,7 @@ WORKDIR /app
 # Copy requirements and install
 COPY requirements.txt .
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      gcc libpq-dev ffmpeg libsndfile1 && \
+      gcc libpq-dev ffmpeg libsndfile1 curl && \
     pip install --no-cache-dir -r requirements.txt && \
     rm -rf /var/lib/apt/lists/*
 

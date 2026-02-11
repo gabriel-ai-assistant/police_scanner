@@ -546,58 +546,68 @@ async def store_audio(session, src_url, call_uid, call_metadata=None):
           - s3_uri: Full S3 URI for logging
     """
     mp3_path = os.path.join(TEMP_DIR, f"{call_uid}.mp3")
-    async with session.get(src_url) as r:
-        if r.status != 200:
-            raise Exception(f"Audio {r.status}")
-        with open(mp3_path, "wb") as f:
-            f.write(await r.read())
-
+    wav_path = None
     try:
-        loop = asyncio.get_running_loop()
-        wav_path = await loop.run_in_executor(None, convert_to_wav, mp3_path)
+        async with session.get(src_url) as r:
+            if r.status != 200:
+                raise Exception(f"Audio {r.status}")
+            with open(mp3_path, "wb") as f:
+                f.write(await r.read())
 
-        # Build S3 key based on whether metadata is available
-        if call_metadata and call_metadata.get('playlist_uuid') and call_metadata.get('started_at'):
-            # New hierarchical structure
-            s3_key = _build_hierarchical_s3_key(
-                call_uid,
-                call_metadata['playlist_uuid'],
-                call_metadata['started_at']
-            )
-            s3_metadata = _build_s3_metadata(call_uid, call_metadata)
-            await loop.run_in_executor(
-                None,
-                _upload_with_metadata,
-                wav_path, MINIO_BUCKET, s3_key, s3_metadata
-            )
-            log.info(f"☁️ Uploaded (hierarchical) → s3://{MINIO_BUCKET}/{s3_key}")
-        else:
-            # Legacy flat structure (backward compatibility)
-            s3_key = f"{MINIO_BUCKET_PATH}/{os.path.basename(wav_path)}"
-            await loop.run_in_executor(None, s3.upload_file, wav_path, MINIO_BUCKET, s3_key)
-            log.info(f"☁️ Uploaded (legacy) → s3://{MINIO_BUCKET}/{s3_key}")
+        try:
+            loop = asyncio.get_running_loop()
+            wav_path = await loop.run_in_executor(None, convert_to_wav, mp3_path)
 
-    except RuntimeError:
-        # No running event loop, use blocking calls
-        wav_path = convert_to_wav(mp3_path)
+            # Build S3 key based on whether metadata is available
+            if call_metadata and call_metadata.get('playlist_uuid') and call_metadata.get('started_at'):
+                # New hierarchical structure
+                s3_key = _build_hierarchical_s3_key(
+                    call_uid,
+                    call_metadata['playlist_uuid'],
+                    call_metadata['started_at']
+                )
+                s3_metadata = _build_s3_metadata(call_uid, call_metadata)
+                await loop.run_in_executor(
+                    None,
+                    _upload_with_metadata,
+                    wav_path, MINIO_BUCKET, s3_key, s3_metadata
+                )
+                log.info(f"☁️ Uploaded (hierarchical) → s3://{MINIO_BUCKET}/{s3_key}")
+            else:
+                # Legacy flat structure (backward compatibility)
+                s3_key = f"{MINIO_BUCKET_PATH}/{os.path.basename(wav_path)}"
+                await loop.run_in_executor(None, s3.upload_file, wav_path, MINIO_BUCKET, s3_key)
+                log.info(f"☁️ Uploaded (legacy) → s3://{MINIO_BUCKET}/{s3_key}")
 
-        if call_metadata and call_metadata.get('playlist_uuid') and call_metadata.get('started_at'):
-            s3_key = _build_hierarchical_s3_key(
-                call_uid,
-                call_metadata['playlist_uuid'],
-                call_metadata['started_at']
-            )
-            s3_metadata = _build_s3_metadata(call_uid, call_metadata)
-            _upload_with_metadata(wav_path, MINIO_BUCKET, s3_key, s3_metadata)
-            log.info(f"☁️ Uploaded (hierarchical) → s3://{MINIO_BUCKET}/{s3_key}")
-        else:
-            s3_key = f"{MINIO_BUCKET_PATH}/{os.path.basename(wav_path)}"
-            s3.upload_file(wav_path, MINIO_BUCKET, s3_key)
-            log.info(f"☁️ Uploaded (legacy) → s3://{MINIO_BUCKET}/{s3_key}")
+        except RuntimeError:
+            # No running event loop, use blocking calls
+            wav_path = convert_to_wav(mp3_path)
 
-    os.remove(wav_path)
-    s3_uri = f"s3://{MINIO_BUCKET}/{s3_key}"
-    return s3_key, s3_uri
+            if call_metadata and call_metadata.get('playlist_uuid') and call_metadata.get('started_at'):
+                s3_key = _build_hierarchical_s3_key(
+                    call_uid,
+                    call_metadata['playlist_uuid'],
+                    call_metadata['started_at']
+                )
+                s3_metadata = _build_s3_metadata(call_uid, call_metadata)
+                _upload_with_metadata(wav_path, MINIO_BUCKET, s3_key, s3_metadata)
+                log.info(f"☁️ Uploaded (hierarchical) → s3://{MINIO_BUCKET}/{s3_key}")
+            else:
+                s3_key = f"{MINIO_BUCKET_PATH}/{os.path.basename(wav_path)}"
+                s3.upload_file(wav_path, MINIO_BUCKET, s3_key)
+                log.info(f"☁️ Uploaded (legacy) → s3://{MINIO_BUCKET}/{s3_key}")
+
+        s3_uri = f"s3://{MINIO_BUCKET}/{s3_key}"
+        return s3_key, s3_uri
+
+    finally:
+        # Always clean up temp files, even on error
+        for path in (mp3_path, wav_path):
+            if path and os.path.exists(path):
+                try:
+                    os.remove(path)
+                except OSError:
+                    log.warning(f"Failed to remove temp file: {path}")
 
 # =========================================================
 # Inserts + Poll Logging
