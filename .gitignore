@@ -1,10 +1,32 @@
-# Byte-compiled / cache
+# Python - Byte-compiled / cache
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+**/__pycache__/
 
-# Virtual environments
+# Python - Virtual environments
 venv/
 whisperenv/
+.venv/
+**/.venv/
+env/
+ENV/
+
+# Python - Testing & coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
 
 # Data, logs & locks
 data/audio/
@@ -13,7 +35,50 @@ data/seen_calls.txt
 data/logs/
 download_calls.lock
 
+# Temporary audio files (CRITICAL - prevents accidental commit of media)
+shared_bcfy/tmp/
+
 # Local config (contains secrets/cookies)
 config.yaml
+.env
+.env.local
+.env.*.local
+conf/.env
 
-# Anything else you don’t want in Git
+# Secrets (Firebase service account, etc.)
+secrets/
+!secrets/.gitkeep
+*.json.secret
+firebase-service-account.json
+
+# Database backups
+*.backup
+*.backup.*
+db/backups/
+
+# Build artifacts
+dist/
+build/
+.cache/
+
+# Logs
+*.log
+*.pid
+
+# Lock files
+*.lock
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Frontend
+node_modules/

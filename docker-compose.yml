@@ -1,0 +1,339 @@
+services:
+  # =========================================================
+  # CACHES / MESSAGING / SEARCH
+  # =========================================================
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.11
+    env_file: [ .env ]
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+    ports:
+      - "7700:7700"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # =========================================================
+  # DATABASE
+  # =========================================================
+  postgres:
+    image: postgres:17
+    container_name: scanner-postgres
+    env_file: [ .env ]
+    environment:
+      POSTGRES_USER: ${LOCAL_DB_USER:-scan}
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD}
+      POSTGRES_DB: ${LOCAL_DB_NAME:-scanner}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./backups:/backups
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${LOCAL_DB_USER:-scan} -d ${LOCAL_DB_NAME:-scanner}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # =========================================================
+  # DATABASE MIGRATIONS (run-once, blocks app services)
+  # =========================================================
+  db-migrate:
+    build: ./db
+    container_name: scanner-db-migrate
+    env_file: [ .env ]
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: ${LOCAL_DB_USER:-scan}
+      PGPASSWORD: ${LOCAL_DB_PASSWORD}
+      PGDATABASE: ${LOCAL_DB_NAME:-scanner}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "1"
+
+  # =========================================================
+  # SIGNAL MESSAGING SERVICE
+  # =========================================================
+  signal-api:
+    image: bbernhard/signal-cli-rest-api:latest
+    container_name: scanner-signal-api
+    environment:
+      - MODE=native
+      # Note: We poll via scheduler instead of using callbacks (not supported in native mode)
+    volumes:
+      - ./data/signal-cli:/home/.local/share/signal-cli
+    tmpfs:
+      - /tmp:size=500M
+    ports:
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/about"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # =========================================================
+  # APPLICATIONS
+  # =========================================================
+  app_scheduler:
+    build: ./app_scheduler
+    env_file: [ .env ]
+    depends_on:
+      redis:
+        condition: service_started
+      signal-api:
+        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
+    environment:
+      # Signal API configuration
+      SIGNAL_API_URL: http://signal-api:8080
+      SIGNAL_SENDER_NUMBER: ${SIGNAL_SENDER_NUMBER:-}
+      # SMTP configuration
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-Scanner Alerts <alerts@example.com>}
+      # Webhook URL for Signal message forwarding
+      API_WEBHOOK_URL: http://scanner-api:8000/api/webhooks/signal/receive
+    volumes:
+      - ./shared_bcfy:/app/shared_bcfy
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  app_transcription:
+    build: ./app_transcribe
+    container_name: scanner-transcription
+    env_file: [ .env ]
+    depends_on:
+      redis:
+        condition: service_started
+      db-migrate:
+        condition: service_completed_successfully
+    command: [ "celery", "-A", "worker", "worker", "--loglevel=INFO" ]
+    volumes:
+      - ./shared_bcfy:/app/shared_bcfy:ro
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # ===========================================================
+  # API SERVICE
+  # ===========================================================
+
+  app_api:
+    build: ./app_api
+    container_name: scanner-api
+    env_file: [ .env ]
+    environment:
+      PGHOST: ${PGHOST:-postgres}
+      PGPORT: ${PGPORT:-5432}
+      PGUSER: ${PGUSER}
+      PGPASSWORD: ${PGPASSWORD}
+      PGDATABASE: ${PGDATABASE}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET:-feeds}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      CORS_ORIGINS: "http://localhost:3000,http://localhost:80,http://localhost,http://scanner-frontend"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      # Firebase Authentication
+      FIREBASE_SERVICE_ACCOUNT_PATH: /opt/policescanner/secrets/firebase-service-account.json
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-scanner_session}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      SESSION_COOKIE_HTTPONLY: ${SESSION_COOKIE_HTTPONLY:-true}
+      SESSION_COOKIE_SAMESITE: ${SESSION_COOKIE_SAMESITE:-lax}
+      SESSION_COOKIE_MAX_AGE: ${SESSION_COOKIE_MAX_AGE:-604800}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+    volumes:
+      - ./secrets/firebase-service-account.json:/opt/policescanner/secrets/firebase-service-account.json:ro
+    depends_on:
+      redis:
+        condition: service_started
+      db-migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # ===========================================================
+  # GEOCODER SERVICE
+  # ===========================================================
+
+  geocoder:
+    build: ./services/geocoder
+    container_name: scanner-geocoder
+    env_file: [ .env ]
+    environment:
+      PGHOST: ${PGHOST:-postgres}
+      PGPORT: ${PGPORT:-5432}
+      PGUSER: ${PGUSER}
+      PGPASSWORD: ${PGPASSWORD}
+      PGDATABASE: ${PGDATABASE}
+      NOMINATIM_USER_AGENT: police-scanner-app
+      GEOCODE_RATE_LIMIT: "1.0"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # ===========================================================
+  # FRONTEND SERVICE
+  # ===========================================================
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=/api
+        - VITE_MOCK=0
+        - VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY:-}
+        - VITE_FIREBASE_AUTH_DOMAIN=${VITE_FIREBASE_AUTH_DOMAIN:-}
+        - VITE_FIREBASE_PROJECT_ID=${VITE_FIREBASE_PROJECT_ID:-}
+    container_name: scanner-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      app_api:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # ===========================================================
+  # MONITORING UIS
+  # ===========================================================
+  flower:
+    image: mher/flower:2.0
+    container_name: scanner-flower
+    command:
+      - celery
+      - --broker=redis://redis:6379/0
+      - flower
+      - --port=5555
+      - --basic-auth=admin:changeme
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - FLOWER_PORT=5555
+      - FLOWER_BASIC_AUTH=admin:changeme
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+      - app_transcription
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: scanner-redisinsight
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "5540:5540"
+    volumes:
+      - redisinsight-data:/data
+    depends_on:
+      - redis
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+# ===========================================================
+# VOLUMES
+# ===========================================================
+volumes:
+  postgres-data:
+    driver: local
+  redisinsight-data:
+    driver: local
+  signal-cli-data:
+    driver: local

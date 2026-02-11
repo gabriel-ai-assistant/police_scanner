@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/yourorg/policescanner/blob/main/README.md
+    about: Check the documentation for help and guidance
+  - name: Discussions
+    url: https://github.com/yourorg/policescanner/discussions
+    about: Ask questions and discuss ideas with the community
