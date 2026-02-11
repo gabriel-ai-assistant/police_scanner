@@ -1,15 +1,22 @@
+import asyncio
 import asyncpg
 from typing import Optional
 from config import settings
 
 
 _pool: Optional[asyncpg.Pool] = None
+_pool_lock = asyncio.Lock()
 
 
 async def get_pool() -> asyncpg.Pool:
-    """Get or create the database connection pool."""
+    """Get or create the database connection pool (async-safe with double-check lock)."""
     global _pool
-    if _pool is None:
+    if _pool is not None:
+        return _pool
+    async with _pool_lock:
+        # Double-check after acquiring lock to avoid duplicate pool creation
+        if _pool is not None:
+            return _pool
         _pool = await asyncpg.create_pool(
             host=settings.PGHOST,
             port=settings.PGPORT,
@@ -26,6 +33,7 @@ async def get_pool() -> asyncpg.Pool:
 async def close_pool():
     """Close the database connection pool."""
     global _pool
-    if _pool is not None:
-        await _pool.close()
-        _pool = None
+    async with _pool_lock:
+        if _pool is not None:
+            await _pool.close()
+            _pool = None
