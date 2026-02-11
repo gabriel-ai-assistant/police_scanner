@@ -1,3 +1,5 @@
+import uuid
+
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
@@ -108,7 +110,7 @@ class UserListResponse(BaseModel):
 
 class CurrentUser(BaseModel):
     """Minimal user info for auth dependency."""
-    id: str
+    id: uuid.UUID
     email: str
     role: str
     is_active: bool = True

@@ -5,6 +5,7 @@ These dependencies extract and validate user sessions from requests.
 """
 
 import logging
+import uuid
 from typing import Optional
 
 from fastapi import Depends, HTTPException, Request, status
@@ -62,7 +63,7 @@ async def get_current_user_optional(
             return None
 
         return CurrentUser(
-            id=str(row["id"]),
+            id=uuid.UUID(str(row["id"])) if not isinstance(row["id"], uuid.UUID) else row["id"],
             email=row["email"],
             role=row["role"],
             is_active=row["is_active"]
