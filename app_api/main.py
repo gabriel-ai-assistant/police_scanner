@@ -5,7 +5,7 @@ import logging
 
 from config import settings
 from database import get_pool, close_pool
-from routers import health, calls, playlists, transcripts, analytics, geography, system, auth, subscriptions, keyword_groups, dashboard, ratings, notifications, webhooks, locations
+from routers import health, calls, playlists, transcripts, analytics, geography, system, auth, subscriptions, keyword_groups, dashboard, ratings, locations
 from auth.firebase import initialize_firebase
 from auth.dependencies import require_auth
 
@@ -75,8 +75,6 @@ app.include_router(subscriptions.router, prefix="/api/subscriptions", tags=["Sub
 app.include_router(keyword_groups.router, prefix="/api/keyword-groups", tags=["Keyword Groups"], dependencies=_auth)
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"], dependencies=_auth)
 app.include_router(ratings.router, prefix="/api/ratings", tags=["Ratings"], dependencies=_auth)
-app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"], dependencies=_auth)
-app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"], dependencies=_auth)
 app.include_router(locations.router, prefix="/api/locations", tags=["Locations"], dependencies=_auth)
 
 
