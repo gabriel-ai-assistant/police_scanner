@@ -78,10 +78,6 @@ except Exception:
 # =========================================================
 # Database
 # =========================================================
-async def get_db():
-    return await asyncpg.connect(DB_URL)
-
-
 async def verify_schema():
     """Verify required columns exist before starting ingestion.
 
@@ -602,22 +598,6 @@ async def store_audio(session, src_url, call_uid, call_metadata=None):
 # =========================================================
 # Inserts + Poll Logging
 # =========================================================
-async def insert_call(conn, uuid, call, url):
-    cid = f"{call['groupId']}-{call['ts']}"
-    await conn.execute("""
-        INSERT INTO bcfy_calls_raw
-        (call_uid,group_id,ts,node_id,sid,site_id,freq,src,url,
-         started_at,ended_at,duration_ms,fetched_at,raw_json)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,TO_TIMESTAMP($10),
-               TO_TIMESTAMP($11),($12*1000),NOW(),$13)
-        ON CONFLICT(call_uid) DO NOTHING;
-    """,
-        cid, call.get("groupId"), call.get("ts"), call.get("nodeId"),
-        call.get("sid"), call.get("siteId"), call.get("freq"),
-        call.get("src"), url, call.get("start_ts"), call.get("end_ts"),
-        call.get("duration", 0), json.dumps(call)
-    )
-
 async def quick_insert_call_metadata(conn, playlist_uuid, call):
     """Insert call metadata immediately (no audio processing) - for near real-time ingestion.
 

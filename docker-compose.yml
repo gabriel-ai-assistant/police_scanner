@@ -335,5 +335,3 @@ volumes:
     driver: local
   redisinsight-data:
     driver: local
-  signal-cli-data:
-    driver: local

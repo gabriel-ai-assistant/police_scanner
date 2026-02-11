@@ -29,10 +29,3 @@ async def close_pool():
     if _pool is not None:
         await _pool.close()
         _pool = None
-
-
-async def get_db():
-    """Dependency for getting a database connection."""
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        yield conn
