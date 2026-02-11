@@ -138,13 +138,8 @@ export async function getLocations(params?: LocationsQueryParams): Promise<Locat
     const response = await api.get<LocationListResponse>('/locations', { params });
     return response.data;
   } catch (error) {
-    console.warn('Using mock locations due to API error', error);
-    return {
-      items: mockLocations,
-      total: mockLocations.length,
-      limit: params?.limit ?? 500,
-      offset: params?.offset ?? 0
-    };
+    console.error('Failed to fetch locations', error);
+    throw error;
   }
 }
 
@@ -162,14 +157,8 @@ export async function getHeatmap(params?: HeatmapQueryParams): Promise<HeatmapRe
     const response = await api.get<HeatmapResponse>('/locations/heatmap', { params });
     return response.data;
   } catch (error) {
-    console.warn('Using mock heatmap due to API error', error);
-    return {
-      points: mockHeatmapPoints,
-      total_locations: mockHeatmapPoints.reduce((sum, p) => sum + p.count, 0),
-      time_window_hours: params?.hours ?? 24,
-      center_lat: 33.2370,
-      center_lon: -96.8000
-    };
+    console.error('Failed to fetch heatmap', error);
+    throw error;
   }
 }
 
@@ -181,8 +170,8 @@ export async function getLocation(id: string): Promise<Location | undefined> {
     const response = await api.get<Location>(`/locations/${id}`);
     return response.data;
   } catch (error) {
-    console.warn('Using mock location due to API error', error);
-    return mockLocations.find(l => l.id === id);
+    console.error('Failed to fetch location', error);
+    throw error;
   }
 }
 
@@ -205,15 +194,7 @@ export async function getLocationStats(params?: { feed_id?: string; hours?: numb
     const response = await api.get<LocationStats>('/locations/stats/summary', { params });
     return response.data;
   } catch (error) {
-    console.warn('Using mock stats due to API error', error);
-    return {
-      total_locations: 15,
-      geocoded: 12,
-      unique_transcripts: 10,
-      unique_feeds: 2,
-      unique_cities: 3,
-      time_range: {},
-      time_window_hours: params?.hours ?? 24
-    };
+    console.error('Failed to fetch location stats', error);
+    throw error;
   }
 }
