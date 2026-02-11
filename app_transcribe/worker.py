@@ -326,7 +326,14 @@ def index_to_meilisearch(transcript_id: int, call_uid: str, text: str, language:
 
 
 def log_to_system_logs(conn, event_type: str, message: str, metadata: dict = None):
-    """Log event to system_logs table."""
+    """Log event to system_logs table.
+
+    TODO: Implement log rotation / retention for system_logs.
+      The table grows unboundedly with every transcription event. Options:
+      1. Schedule a periodic DELETE: DELETE FROM system_logs WHERE created_at < NOW() - INTERVAL '30 days'
+      2. Use daily partitions (see db/migrations/002_phase2_partitioning.sql) and auto-drop old ones.
+      3. Archive old logs to S3/cold storage before deletion.
+    """
     try:
         with conn.cursor() as cur:
             cur.execute("""

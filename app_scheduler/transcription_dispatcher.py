@@ -137,6 +137,12 @@ async def dispatch_transcription_tasks() -> int:
                 continue
 
         # Log batch completion
+        # TODO: Implement log rotation / retention for system_logs table.
+        #   The system_logs table grows unboundedly. Options:
+        #   1. Use pg_partman with daily partitions (see db/migrations/002_phase2_partitioning.sql)
+        #      and DROP old partitions via cron (e.g., retain 30 days).
+        #   2. Add a scheduled job: DELETE FROM system_logs WHERE created_at < NOW() - INTERVAL '30 days'
+        #   3. Partition by month and detach/drop old partitions automatically.
         if queued_count > 0:
             await conn.execute("""
                 INSERT INTO system_logs (component, event_type, message, metadata)

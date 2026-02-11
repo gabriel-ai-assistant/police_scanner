@@ -130,9 +130,18 @@ services:
       SMTP_FROM: ${SMTP_FROM:-Scanner Alerts <alerts@example.com>}
       # Webhook URL for Signal message forwarding
       API_WEBHOOK_URL: http://scanner-api:8000/api/webhooks/signal/receive
+      # Health check port for scheduler
+      HEALTH_PORT: "8088"
     volumes:
       - ./shared_bcfy:/app/shared_bcfy
     restart: unless-stopped
+    stop_grace_period: 45s
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8088/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     logging:
       driver: "json-file"
       options:
@@ -152,6 +161,12 @@ services:
     volumes:
       - ./shared_bcfy:/app/shared_bcfy:ro
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A worker inspect ping --timeout 10 || exit 1"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 45s
     logging:
       driver: "json-file"
       options:
@@ -335,5 +350,4 @@ volumes:
     driver: local
   redisinsight-data:
     driver: local
-  signal-cli-data:
     driver: local
