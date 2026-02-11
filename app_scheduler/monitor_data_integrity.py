@@ -37,10 +37,10 @@ async def check_stuck_calls(conn, hours=1):
         FROM bcfy_calls_raw
         WHERE processed = FALSE
           AND error IS NULL
-          AND fetched_at < NOW() - INTERVAL '%s hours'
+          AND fetched_at < NOW() - ($1::int * INTERVAL '1 hour')
         ORDER BY fetched_at ASC
         LIMIT 20
-    """ % hours)
+    """, hours)
 
     return {
         'check': 'stuck_calls',
@@ -93,11 +93,11 @@ async def check_error_patterns(conn, hours=24):
             MAX(last_attempt) as latest
         FROM bcfy_calls_raw
         WHERE error IS NOT NULL
-          AND last_attempt > NOW() - INTERVAL '%s hours'
+          AND last_attempt > NOW() - ($1::int * INTERVAL '1 hour')
         GROUP BY SUBSTRING(error FROM 1 FOR 100)
         ORDER BY count DESC
         LIMIT 10
-    """ % hours)
+    """, hours)
 
     total_errors = sum(r['count'] for r in result)
 
@@ -122,8 +122,8 @@ async def check_null_playlist_uuid(conn, hours=24):
     count = await conn.fetchval("""
         SELECT COUNT(*) FROM bcfy_calls_raw
         WHERE playlist_uuid IS NULL
-          AND fetched_at > NOW() - INTERVAL '%s hours'
-    """ % hours)
+          AND fetched_at > NOW() - ($1::int * INTERVAL '1 hour')
+    """, hours)
 
     return {
         'check': 'null_playlist_uuid',
@@ -185,10 +185,10 @@ async def get_recent_system_logs(conn, minutes=30):
         SELECT event_type, message, metadata, created_at
         FROM system_logs
         WHERE component = 'ingestion'
-          AND created_at > NOW() - INTERVAL '%s minutes'
+          AND created_at > NOW() - ($1::int * INTERVAL '1 minute')
         ORDER BY created_at DESC
         LIMIT 20
-    """ % minutes)
+    """, minutes)
 
     return {
         'check': 'recent_logs',
