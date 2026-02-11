@@ -4,6 +4,7 @@ Database connection pooling for efficient connection reuse.
 Eliminates the overhead of creating new connections on every cycle.
 """
 
+import asyncio
 import asyncpg
 import os
 from dotenv import load_dotenv
@@ -11,11 +12,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 _pool = None
+_pool_lock = asyncio.Lock()
 
 async def get_pool():
-    """Get or create the global connection pool."""
+    """Get or create the global connection pool (thread-safe with asyncio.Lock)."""
     global _pool
-    if _pool is None:
+    if _pool is not None:
+        return _pool
+    async with _pool_lock:
+        # Double-check after acquiring lock to avoid duplicate pool creation
+        if _pool is not None:
+            return _pool
         _pool = await asyncpg.create_pool(
             host=os.getenv("PGHOST"),
             port=int(os.getenv("PGPORT", 5432)),
@@ -41,6 +48,7 @@ async def release_connection(conn):
 async def close_pool():
     """Close the connection pool (for cleanup)."""
     global _pool
-    if _pool:
-        await _pool.close()
-        _pool = None
+    async with _pool_lock:
+        if _pool:
+            await _pool.close()
+            _pool = None
