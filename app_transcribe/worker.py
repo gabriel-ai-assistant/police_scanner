@@ -12,6 +12,7 @@ import tempfile
 import logging
 import re
 import time
+import threading
 from datetime import datetime
 from typing import Optional, Dict, Any
 
@@ -103,51 +104,72 @@ MEILI_KEY = os.getenv("MEILI_MASTER_KEY")
 
 _meili_client = None
 _meili_client_initialized = False
+_meili_lock = threading.Lock()
+_meili_last_failure: Optional[float] = None  # monotonic timestamp of last failed attempt
+_MEILI_FAILURE_COOLDOWN = 60  # seconds to wait before retrying after failure
 
 
 def get_meili_client() -> Optional[meilisearch.Client]:
-    """Lazy singleton MeiliSearch client with retry logic.
+    """Lazy singleton MeiliSearch client with retry logic and failure cooldown.
 
-    Attempts to connect with 3 retries using exponential backoff (1s, 2s, 4s).
-    Returns None if MeiliSearch is unreachable (allows worker to continue
-    without indexing rather than crashing).
+    Thread-safe via _meili_lock. Attempts to connect with 3 retries using
+    exponential backoff (1s, 2s, 4s). Returns None if MeiliSearch is
+    unreachable (allows worker to continue without indexing).
+
+    After a failed connection attempt, subsequent calls return None immediately
+    for _MEILI_FAILURE_COOLDOWN seconds to avoid blocking every task with ~7s
+    of retries when MeiliSearch is down.
     """
-    global _meili_client, _meili_client_initialized
+    global _meili_client, _meili_client_initialized, _meili_last_failure
 
+    # Fast path: already connected (no lock needed, reads are atomic for bools)
     if _meili_client_initialized:
         return _meili_client
 
-    max_retries = 3
-    backoff_seconds = [1, 2, 4]
-
-    for attempt in range(max_retries):
-        try:
-            client = meilisearch.Client(MEILI_HOST, MEILI_KEY)
-            # Verify connectivity by hitting the health endpoint
-            client.health()
-            _meili_client = client
-            _meili_client_initialized = True
-            log.info(f"MeiliSearch client connected to {MEILI_HOST}")
+    with _meili_lock:
+        # Double-check after acquiring lock
+        if _meili_client_initialized:
             return _meili_client
-        except Exception as e:
-            delay = backoff_seconds[attempt] if attempt < len(backoff_seconds) else backoff_seconds[-1]
-            if attempt < max_retries - 1:
-                log.warning(
-                    f"MeiliSearch connection attempt {attempt + 1}/{max_retries} failed: {e}. "
-                    f"Retrying in {delay}s..."
-                )
-                time.sleep(delay)
-            else:
-                log.warning(
-                    f"MeiliSearch connection failed after {max_retries} attempts: {e}. "
-                    f"Indexing will be disabled until next call to get_meili_client()."
-                )
 
-    # All retries exhausted — mark as initialized but None so we don't
-    # retry on every single task. The worker can still process audio.
-    # NOTE: we do NOT set _meili_client_initialized = True here so that
-    # subsequent calls will re-attempt connection (MeiliSearch may come back).
-    return None
+        # Cooldown check: if we failed recently, return None immediately
+        if _meili_last_failure is not None:
+            elapsed = time.monotonic() - _meili_last_failure
+            if elapsed < _MEILI_FAILURE_COOLDOWN:
+                log.debug(
+                    f"MeiliSearch failure cooldown active ({_MEILI_FAILURE_COOLDOWN - elapsed:.0f}s remaining)"
+                )
+                return None
+
+        max_retries = 3
+        backoff_seconds = [1, 2, 4]
+
+        for attempt in range(max_retries):
+            try:
+                client = meilisearch.Client(MEILI_HOST, MEILI_KEY)
+                # Verify connectivity by hitting the health endpoint
+                client.health()
+                _meili_client = client
+                _meili_client_initialized = True
+                _meili_last_failure = None  # clear any previous failure
+                log.info(f"MeiliSearch client connected to {MEILI_HOST}")
+                return _meili_client
+            except Exception as e:
+                delay = backoff_seconds[attempt] if attempt < len(backoff_seconds) else backoff_seconds[-1]
+                if attempt < max_retries - 1:
+                    log.warning(
+                        f"MeiliSearch connection attempt {attempt + 1}/{max_retries} failed: {e}. "
+                        f"Retrying in {delay}s..."
+                    )
+                    time.sleep(delay)
+                else:
+                    log.warning(
+                        f"MeiliSearch connection failed after {max_retries} attempts: {e}. "
+                        f"Will retry after {_MEILI_FAILURE_COOLDOWN}s cooldown."
+                    )
+
+        # All retries exhausted — record failure time for cooldown
+        _meili_last_failure = time.monotonic()
+        return None
 
 # =============================================================================
 # Helper Functions
