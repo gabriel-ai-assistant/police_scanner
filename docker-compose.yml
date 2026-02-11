@@ -27,6 +27,8 @@ services:
 
   # =========================================================
   # OBJECT STORAGE
+  # NOTE: MinIO runs in Docker for dev/staging. In production, use an external
+  # MinIO server and set MINIO_ENDPOINT to its address (no Docker service needed).
   # =========================================================
   minio:
     image: minio/minio:latest
