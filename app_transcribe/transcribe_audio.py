@@ -8,11 +8,11 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger(__name__)
 
 DB = {
-    "host": os.getenv("DB_HOST", "db"),
-    "port": "5432",
-    "dbname": "scanner",
-    "user": "scanner",
-    "password": "scanner",
+    "host": os.getenv("PGHOST", "postgres"),
+    "port": os.getenv("PGPORT", "5432"),
+    "dbname": os.getenv("PGDATABASE", "scanner"),
+    "user": os.getenv("PGUSER", "scan"),
+    "password": os.getenv("PGPASSWORD", ""),
 }
 
 BUCKET_PATH = os.getenv("AUDIO_BUCKET_PATH", "calls")
