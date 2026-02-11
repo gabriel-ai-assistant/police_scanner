@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, Depends
+from fastapi import APIRouter, Query, Depends, HTTPException
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import asyncpg
@@ -71,7 +71,7 @@ async def get_call(
         )
 
     if row is None:
-        return {"error": "Call not found"}
+        raise HTTPException(status_code=404, detail="Call not found")
 
     return transform_call_response(dict(row))
 
