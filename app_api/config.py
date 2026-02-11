@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     CACHE_PLAYLISTS_TTL: int = 300
 
     # MinIO
-    MINIO_ENDPOINT: str = "192.168.1.152:9000"
+    MINIO_ENDPOINT: str = "minio:9000"
     MINIO_ROOT_USER: str = "scanner"
     MINIO_ROOT_PASSWORD: str
     MINIO_BUCKET: str = "feeds"

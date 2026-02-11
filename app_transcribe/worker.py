@@ -72,7 +72,7 @@ def get_db_connection():
 # =============================================================================
 # S3/MinIO Configuration
 # =============================================================================
-MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "192.168.1.152:9000")
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "minio:9000")
 MINIO_USE_SSL = os.getenv("MINIO_USE_SSL", "false").lower() == "true"
 BUCKET = os.getenv("MINIO_BUCKET", "feeds")
 BUCKET_PATH = os.getenv("AUDIO_BUCKET_PATH", "calls")

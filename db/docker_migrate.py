@@ -24,9 +24,9 @@ import time
 
 PGHOST = os.getenv("PGHOST", "postgres")
 PGPORT = os.getenv("PGPORT", "5432")
-PGUSER = os.getenv("PGUSER", os.getenv("LOCAL_DB_USER", "scan"))
-PGPASSWORD = os.getenv("PGPASSWORD", os.getenv("LOCAL_DB_PASSWORD", ""))
-PGDATABASE = os.getenv("PGDATABASE", os.getenv("LOCAL_DB_NAME", "scanner"))
+PGUSER = os.getenv("PGUSER", "scan")
+PGPASSWORD = os.getenv("PGPASSWORD", "")
+PGDATABASE = os.getenv("PGDATABASE", "scanner")
 
 if not PGPASSWORD:
     print("ERROR: PGPASSWORD environment variable is empty or unset.", file=sys.stderr, flush=True)
