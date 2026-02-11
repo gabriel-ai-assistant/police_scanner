@@ -28,6 +28,10 @@ PGUSER = os.getenv("PGUSER", os.getenv("LOCAL_DB_USER", "scan"))
 PGPASSWORD = os.getenv("PGPASSWORD", os.getenv("LOCAL_DB_PASSWORD", ""))
 PGDATABASE = os.getenv("PGDATABASE", os.getenv("LOCAL_DB_NAME", "scanner"))
 
+if not PGPASSWORD:
+    print("ERROR: PGPASSWORD environment variable is empty or unset.", file=sys.stderr, flush=True)
+    sys.exit(1)
+
 MIGRATIONS_DIR = "/app/migrations"
 INIT_SQL = "/app/init.sql"
 
@@ -35,7 +39,13 @@ INIT_SQL = "/app/init.sql"
 MAX_WAIT = 60
 
 
-def psql(*args: str, file: str | None = None) -> int:
+def _validate_version(version: str) -> None:
+    """Ensure version is safe for SQL use (digits only, or literal 'init')."""
+    if version != "init" and not re.fullmatch(r"\d+", version):
+        raise ValueError(f"Invalid migration version (must be digits only): {version!r}")
+
+
+def psql(*args: str, file: str | None = None, single_transaction: bool = False) -> int:
     """Run a psql command and return the exit code."""
     env = {
         **os.environ,
@@ -46,6 +56,8 @@ def psql(*args: str, file: str | None = None) -> int:
         "PGDATABASE": PGDATABASE,
     }
     cmd = ["psql", "-v", "ON_ERROR_STOP=1", *args]
+    if single_transaction:
+        cmd.insert(1, "-1")
     if file:
         cmd.extend(["-f", file])
     result = subprocess.run(cmd, env=env, capture_output=True, text=True)
@@ -99,6 +111,7 @@ def ensure_tracking_table() -> None:
 
 def already_applied(version: str) -> bool:
     """Check whether a migration version has been recorded."""
+    _validate_version(version)
     env = {
         **os.environ,
         "PGHOST": PGHOST,
@@ -107,11 +120,13 @@ def already_applied(version: str) -> bool:
         "PGPASSWORD": PGPASSWORD,
         "PGDATABASE": PGDATABASE,
     }
+    # Use psql variable binding to avoid SQL injection
     result = subprocess.run(
         [
             "psql",
             "-tAc",
-            f"SELECT 1 FROM schema_migrations WHERE version = '{version}';",
+            "SELECT 1 FROM schema_migrations WHERE version = :'mig_version';",
+            "-v", f"mig_version={version}",
         ],
         env=env,
         capture_output=True,
@@ -122,7 +137,12 @@ def already_applied(version: str) -> bool:
 
 def record_migration(version: str) -> None:
     """Record a migration as applied."""
-    psql("-c", f"INSERT INTO schema_migrations (version) VALUES ('{version}');")
+    _validate_version(version)
+    psql(
+        "-c",
+        "INSERT INTO schema_migrations (version) VALUES (:'mig_version');",
+        "-v", f"mig_version={version}",
+    )
 
 
 def apply_init_sql() -> None:
@@ -135,7 +155,7 @@ def apply_init_sql() -> None:
         print("No init.sql found – skipping base schema.", flush=True)
         return
     print("Applying init.sql (base schema) ...", flush=True)
-    rc = psql(file=INIT_SQL)
+    rc = psql(file=INIT_SQL, single_transaction=True)
     if rc != 0:
         print("ERROR: init.sql failed.", file=sys.stderr)
         sys.exit(1)
@@ -172,7 +192,7 @@ def run_migrations() -> None:
             skipped += 1
             continue
         print(f"Applying migration {name} ...", flush=True)
-        rc = psql(file=filepath)
+        rc = psql(file=filepath, single_transaction=True)
         if rc != 0:
             print(f"ERROR: Migration {name} failed.", file=sys.stderr)
             sys.exit(1)
