@@ -4,6 +4,8 @@ import time
 import hmac
 import base64
 import logging
+import threading
+import concurrent.futures
 import psycopg2
 import requests
 from hashlib import sha256
@@ -60,13 +62,16 @@ def get_conn():
 # =========================================================
 # HTTP helper (with persistent session + retries)
 # =========================================================
+_thread_local = threading.local()
+
+
 def fetch_json(url: str, headers: dict, retries: int = 3, timeout: int = 15):
-    if not hasattr(fetch_json, "session"):
-        fetch_json.session = requests.Session()
+    if not hasattr(_thread_local, "session"):
+        _thread_local.session = requests.Session()
 
     for attempt in range(1, retries + 1):
         try:
-            resp = fetch_json.session.get(url, headers=headers, timeout=timeout)
+            resp = _thread_local.session.get(url, headers=headers, timeout=timeout)
             resp.raise_for_status()
             return resp.json()
         except Exception as e:
@@ -149,102 +154,100 @@ def main(verbose=False):
     log.info(f"Found {len(states)} states to sync counties for.")
     total_inserted, total_skipped = 0, 0
 
-    for idx, (stid, state_name, coid, country_name) in enumerate(states, start=1):
-        url = f"{base_url}{COUNTIES_PATH_TEMPLATE.format(stid)}"
-        log.info(f"[{idx}/{len(states)}] Fetching counties list for {state_name}, {country_name} (stid={stid})")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        for idx, (stid, state_name, coid, country_name) in enumerate(states, start=1):
+            url = f"{base_url}{COUNTIES_PATH_TEMPLATE.format(stid)}"
+            log.info(f"[{idx}/{len(states)}] Fetching counties list for {state_name}, {country_name} (stid={stid})")
 
-        try:
-            data = fetch_json(url, headers)
-        except Exception as e:
-            log.error(f"Failed to fetch counties for {state_name} ({stid}): {e}")
-            continue
-
-        counties = []
-        if isinstance(data, dict):
-            counties = data.get("counties") or data.get("data") or []
-        elif isinstance(data, list):
-            counties = data
-
-        if not counties:
-            log.info(f"No counties returned for {state_name}")
-            continue
-
-        log.info(f"Retrieved {len(counties)} counties for {state_name}")
-
-        # PERF FIX: Batch county detail fetching instead of N+1 individual requests.
-        # First, collect all county IDs, then fetch details in batches.
-        county_ids = []
-        county_map = {}
-        for c in counties:
-            ctid = c.get("ctid") or c.get("cntid") or c.get("id")
-            if not ctid:
-                total_skipped += 1
-                log.warning(f"Skipping county (missing ctid): {c}")
-                continue
-            county_ids.append(ctid)
-            county_map[ctid] = c
-
-        # Fetch details in batches (the external API only supports single-county
-        # detail endpoints, so we still make individual calls but with concurrency
-        # via a thread pool to avoid serial blocking).
-        import concurrent.futures
-
-        def fetch_county_detail(ctid):
-            detail_url = f"{base_url}{COUNTY_DETAIL_PATH_TEMPLATE.format(ctid)}"
             try:
-                return ctid, fetch_json(detail_url, headers)
+                data = fetch_json(url, headers)
             except Exception as e:
-                log.warning(f"Failed to fetch detail for county {ctid}: {e}")
-                return ctid, None
+                log.error(f"Failed to fetch counties for {state_name} ({stid}): {e}")
+                continue
 
-        BATCH_SIZE = 10  # concurrent requests per batch
-        details = {}
-        for i in range(0, len(county_ids), BATCH_SIZE):
-            batch = county_ids[i:i + BATCH_SIZE]
-            with concurrent.futures.ThreadPoolExecutor(max_workers=BATCH_SIZE) as executor:
+            counties = []
+            if isinstance(data, dict):
+                counties = data.get("counties") or data.get("data") or []
+            elif isinstance(data, list):
+                counties = data
+
+            if not counties:
+                log.info(f"No counties returned for {state_name}")
+                continue
+
+            log.info(f"Retrieved {len(counties)} counties for {state_name}")
+
+            # PERF FIX: Batch county detail fetching instead of N+1 individual requests.
+            # First, collect all county IDs, then fetch details in batches.
+            county_ids = []
+            county_map = {}
+            for c in counties:
+                ctid = c.get("ctid") or c.get("cntid") or c.get("id")
+                if not ctid:
+                    total_skipped += 1
+                    log.warning(f"Skipping county (missing ctid): {c}")
+                    continue
+                county_ids.append(ctid)
+                county_map[ctid] = c
+
+            # Fetch details in batches (the external API only supports single-county
+            # detail endpoints, so we still make individual calls but with concurrency
+            # via a thread pool to avoid serial blocking).
+            def fetch_county_detail(ctid):
+                detail_url = f"{base_url}{COUNTY_DETAIL_PATH_TEMPLATE.format(ctid)}"
+                try:
+                    return ctid, fetch_json(detail_url, headers)
+                except Exception as e:
+                    log.warning(f"Failed to fetch detail for county {ctid}: {e}")
+                    return ctid, None
+
+            BATCH_SIZE = 10  # concurrent requests per batch
+            details = {}
+            for i in range(0, len(county_ids), BATCH_SIZE):
+                batch = county_ids[i:i + BATCH_SIZE]
                 results = executor.map(fetch_county_detail, batch)
                 for ctid, detail in results:
                     if detail is not None:
                         details[ctid] = detail
-            time.sleep(0.2)  # small delay between batches
+                time.sleep(0.2)  # small delay between batches
 
-        for ctid in county_ids:
-            if ctid not in details:
-                total_skipped += 1
-                continue
-            detail = details[ctid]
-            c = county_map[ctid]
-            c.update(detail)
+            for ctid in county_ids:
+                if ctid not in details:
+                    total_skipped += 1
+                    continue
+                detail = details[ctid]
+                c = county_map[ctid]
+                c.update(detail)
 
-            row = {
-                "cntid": int(ctid),
-                "stid": int(detail.get("stid", stid)),
-                "coid": int(detail.get("coid", coid)),
-                "county_name": detail.get("county_name"),
-                "county_header": detail.get("county_header"),
-                "type": int(detail.get("type")) if detail.get("type") not in (None, "") else None,
-                "lat": float(detail.get("lat")) if detail.get("lat") not in (None, "") else None,
-                "lon": float(detail.get("lon")) if detail.get("lon") not in (None, "") else None,
-                "range": int(detail.get("range")) if detail.get("range") not in (None, "") else None,
-                "fips": detail.get("fips"),
-                "timezone_str": detail.get("timezone") or detail.get("timezone_str"),
-                "state_name": detail.get("state_name") or state_name,
-                "state_code": detail.get("state_code"),
-                "country_name": detail.get("country_name") or country_name,
-                "country_code": detail.get("country_code"),
-                "is_active": c.get("is_active", True),
-                "sync": c.get("sync", False),
-                "raw_json": json.dumps(detail, separators=(",", ":")),
-            }
+                row = {
+                    "cntid": int(ctid),
+                    "stid": int(detail.get("stid", stid)),
+                    "coid": int(detail.get("coid", coid)),
+                    "county_name": detail.get("county_name"),
+                    "county_header": detail.get("county_header"),
+                    "type": int(detail.get("type")) if detail.get("type") not in (None, "") else None,
+                    "lat": float(detail.get("lat")) if detail.get("lat") not in (None, "") else None,
+                    "lon": float(detail.get("lon")) if detail.get("lon") not in (None, "") else None,
+                    "range": int(detail.get("range")) if detail.get("range") not in (None, "") else None,
+                    "fips": detail.get("fips"),
+                    "timezone_str": detail.get("timezone") or detail.get("timezone_str"),
+                    "state_name": detail.get("state_name") or state_name,
+                    "state_code": detail.get("state_code"),
+                    "country_name": detail.get("country_name") or country_name,
+                    "country_code": detail.get("country_code"),
+                    "is_active": c.get("is_active", True),
+                    "sync": c.get("sync", False),
+                    "raw_json": json.dumps(detail, separators=(",", ":")),
+                }
 
-            try:
-                upsert_county(conn, row)
-                total_inserted += 1
-            except Exception as e:
-                total_skipped += 1
-                log.warning(f"Failed to upsert county {ctid}: {e}")
+                try:
+                    upsert_county(conn, row)
+                    total_inserted += 1
+                except Exception as e:
+                    total_skipped += 1
+                    log.warning(f"Failed to upsert county {ctid}: {e}")
 
-        log.info(f"Completed {state_name}: {total_inserted} inserted/updated, {total_skipped} skipped so far.")
+            log.info(f"Completed {state_name}: {total_inserted} inserted/updated, {total_skipped} skipped so far.")
 
     conn.close()
     log.info(f"All done. Inserted/updated: {total_inserted}, skipped: {total_skipped}.")

@@ -42,6 +42,19 @@ import time as _time
 
 _stats_cache: dict = {}  # key -> {"data": ..., "expires": float}
 _STATS_TTL = 60  # seconds
+_CACHE_MAX_SIZE = 1000
+
+
+def _evict_cache(cache: dict) -> None:
+    """Evict expired entries from cache; if still over limit, clear entirely."""
+    if len(cache) <= _CACHE_MAX_SIZE:
+        return
+    now = _time.time()
+    expired = [k for k, v in cache.items() if v["expires"] <= now]
+    for k in expired:
+        del cache[k]
+    if len(cache) > _CACHE_MAX_SIZE:
+        cache.clear()
 
 
 def _cache_get(key: str):
@@ -52,6 +65,7 @@ def _cache_get(key: str):
 
 
 def _cache_set(key: str, data, ttl: int = _STATS_TTL):
+    _evict_cache(_stats_cache)
     _stats_cache[key] = {"data": data, "expires": _time.time() + ttl}
 
 # S3/MinIO client for presigned URLs
@@ -97,6 +111,7 @@ def build_audio_url(s3_key: Optional[str]) -> Optional[str]:
             },
             ExpiresIn=3600,  # URL valid for 1 hour
         )
+        _evict_cache(_presigned_cache)
         _presigned_cache[s3_key] = {"url": url, "expires": _time.time() + _PRESIGNED_TTL}
         return url
     except ClientError as e:
