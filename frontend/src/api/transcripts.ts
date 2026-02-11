@@ -23,8 +23,8 @@ export async function getTranscript(id: number): Promise<Transcript | undefined>
     const response = await api.get<Transcript>(`/transcripts/${id}`);
     return response.data;
   } catch (error) {
-    console.warn('Using mock transcript due to API error', error);
-    return mockTranscripts.find(t => t.id === id);
+    console.error('Failed to fetch transcript', error);
+    throw error;
   }
 }
 
@@ -40,9 +40,8 @@ export async function listTranscripts(opts?: { callUid?: string; limit?: number 
     const response = await api.get<Transcript[]>('/transcripts', { params });
     return response.data ?? [];
   } catch (error) {
-    console.warn('Using mock transcripts due to API error', error);
-    const base = callUid ? mockTranscripts.filter(t => t.call_uid === callUid) : mockTranscripts;
-    return base.slice(0, limit);
+    console.error('Failed to fetch transcripts', error);
+    throw error;
   }
 }
 
@@ -52,7 +51,7 @@ export async function searchTranscripts(query: string = '', limit: number = 50):
     const response = await api.get<Transcript[]>('/transcripts/search', { params: { q: query, limit } });
     return response.data ?? [];
   } catch (error) {
-    console.warn('Using mock transcripts due to API error', error);
-    return mockTranscripts.slice(0, limit);
+    console.error('Failed to search transcripts', error);
+    throw error;
   }
 }

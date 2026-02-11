@@ -28,10 +28,10 @@ export async function fetchTopFeeds(top = 25): Promise<Feed[]> {
   if (isMock) return MOCK_FEEDS.slice(0, top);
   try {
     const res = await api.get('/playlists', { params: { limit: top } });
-    return res.data ?? MOCK_FEEDS.slice(0, top);
+    return res.data ?? [];
   } catch (e) {
-    console.warn('fetchTopFeeds failed, using mock data', e);
-    return MOCK_FEEDS.slice(0, top);
+    console.error('Failed to fetch feeds', e);
+    throw e;
   }
 }
 

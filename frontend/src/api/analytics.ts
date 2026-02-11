@@ -56,10 +56,10 @@ export async function fetchKeywordHits(): Promise<KeywordHit[]> {
   if (isMock) return mockKeywordHits;
   try {
     const res = await api.get<KeywordHit[]>('/analytics/keywords');
-    return res.data ?? mockKeywordHits;
+    return res.data ?? [];
   } catch (error) {
-    console.warn('Using mock keyword hits due to API error', error);
-    return mockKeywordHits;
+    console.error('Failed to fetch keyword hits', error);
+    throw error;
   }
 }
 
@@ -67,10 +67,10 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   if (isMock) return mockDashboardMetrics;
   try {
     const res = await api.get<DashboardMetrics>('/analytics/dashboard');
-    return res.data ?? mockDashboardMetrics;
+    return res.data;
   } catch (error) {
-    console.warn('Using mock dashboard metrics due to API error', error);
-    return mockDashboardMetrics;
+    console.error('Failed to fetch dashboard metrics', error);
+    throw error;
   }
 }
 
@@ -78,10 +78,10 @@ export async function fetchHourlyActivity(): Promise<HourlyPoint[]> {
   if (isMock) return mockHourly;
   try {
     const res = await api.get<HourlyPoint[]>('/analytics/hourly');
-    return res.data ?? mockHourly;
+    return res.data ?? [];
   } catch (error) {
-    console.warn('Using mock hourly activity due to API error', error);
-    return mockHourly;
+    console.error('Failed to fetch hourly activity', error);
+    throw error;
   }
 }
 
@@ -92,8 +92,8 @@ export async function fetchTopTalkgroups(limit = 10): Promise<TalkgroupHit[]> {
     const data = res.data ?? [];
     return data.slice(0, limit);
   } catch (error) {
-    console.warn('Using mock top talkgroups due to API error', error);
-    return mockTopTalkgroups.slice(0, limit);
+    console.error('Failed to fetch top talkgroups', error);
+    throw error;
   }
 }
 
