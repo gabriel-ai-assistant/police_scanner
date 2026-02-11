@@ -124,13 +124,13 @@ async def get_hourly_activity(
             TO_CHAR(DATE_TRUNC('hour', started_at), 'HH24:00') as hour,
             COUNT(*) as count
         FROM bcfy_calls_raw
-        WHERE started_at > NOW() - INTERVAL '%s hours'
+        WHERE started_at > NOW() - ($1::int * INTERVAL '1 hour')
         GROUP BY DATE_TRUNC('hour', started_at)
         ORDER BY DATE_TRUNC('hour', started_at)
-    """ % hours
+    """
 
     async with pool.acquire() as conn:
-        rows = await conn.fetch(query)
+        rows = await conn.fetch(query, hours)
 
     return [HourlyPoint(hour=row["hour"], count=row["count"]) for row in rows]
 
@@ -142,25 +142,25 @@ async def get_top_talkgroups(
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get top active talkgroups."""
-    # Map period to interval
-    period_map = {
-        "1h": "1 hour",
-        "24h": "24 hours",
-        "7d": "7 days",
+    # Convert period to hours for parameterized query
+    hours_map = {
+        "1h": 1,
+        "24h": 24,
+        "7d": 168,
     }
-    interval = period_map.get(period, "24 hours")
+    interval_hours = hours_map.get(period, 24)
 
-    query = f"""
+    query = """
         SELECT tg_id, COUNT(*) as count
         FROM bcfy_calls_raw
-        WHERE started_at > NOW() - INTERVAL '{interval}' AND tg_id IS NOT NULL
+        WHERE started_at > NOW() - ($1::int * INTERVAL '1 hour') AND tg_id IS NOT NULL
         GROUP BY tg_id
         ORDER BY count DESC
-        LIMIT $1
+        LIMIT $2
     """
 
     async with pool.acquire() as conn:
-        rows = await conn.fetch(query, limit)
+        rows = await conn.fetch(query, interval_hours, limit)
 
     return [TalkgroupHit(tg_id=row["tg_id"], count=row["count"]) for row in rows]
 
@@ -172,11 +172,7 @@ async def get_keyword_hits(
 ):
     """Get keyword hit counts (placeholder - needs keywords table)."""
     # TODO: Implement when keywords table/system is available
-    return [
-        KeywordHit(keyword="pursuit", count=12),
-        KeywordHit(keyword="accident", count=9),
-        KeywordHit(keyword="alarm", count=7),
-    ]
+    return []
 
 
 @router.get("/transcription-quality", response_model=QualityDistribution)
