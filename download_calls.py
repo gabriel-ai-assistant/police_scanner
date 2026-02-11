@@ -6,6 +6,7 @@ import requests
 import subprocess
 import logging
 import fcntl
+from env_config import load_config
 
 # === establish absolute paths ===
 SCRIPT_DIR        = os.path.dirname(os.path.abspath(__file__))
@@ -21,9 +22,8 @@ except BlockingIOError:
     # another instance is running
     sys.exit(0)
 
-# Load configuration
-with open(CONFIG_PATH) as f:
-    cfg = yaml.safe_load(f)
+# Load configuration (env vars take precedence over config.yaml)
+cfg = load_config()
 
 # Broadcastify configuration
 b_cfg         = cfg["broadcastify"]

@@ -8,18 +8,15 @@ import logging
 import re
 import datetime
 import pytz  # pip install pytz
+from env_config import load_config as _load_config
 
 # === establish absolute paths ===
 SCRIPT_DIR     = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH    = os.path.join(SCRIPT_DIR, "config.yaml")
 PARSE_SCRIPT   = os.path.join(SCRIPT_DIR, "parse_and_alert.py")
 
-# Load configuration
-def load_config():
-    with open(CONFIG_PATH) as f:
-        return yaml.safe_load(f)
-
-cfg = load_config()
+# Load configuration (env vars take precedence over config.yaml)
+cfg = _load_config()
 
 # Logging configuration
 log_cfg     = cfg.get("logging", {})

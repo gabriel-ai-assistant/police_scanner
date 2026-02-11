@@ -15,5 +15,6 @@ download_calls.lock
 
 # Local config (contains secrets/cookies)
 config.yaml
+.env
 
 # Anything else you don’t want in Git
