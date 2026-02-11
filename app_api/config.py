@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     CACHE_PLAYLISTS_TTL: int = 300
 
     # MinIO
-    MINIO_ENDPOINT: str = "192.168.1.152:9000"
+    MINIO_ENDPOINT: str = "minio:9000"
     MINIO_ROOT_USER: str = "scanner"
     MINIO_ROOT_PASSWORD: str
     MINIO_BUCKET: str = "feeds"
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
 
     # Session cookies
     SESSION_COOKIE_NAME: str = "scanner_session"
-    SESSION_COOKIE_SECURE: bool = False     # Set to True for HTTPS in production
+    SESSION_COOKIE_SECURE: bool = True      # HTTPS required in production
     SESSION_COOKIE_HTTPONLY: bool = True    # Not accessible via JavaScript
     SESSION_COOKIE_SAMESITE: str = "lax"
     SESSION_COOKIE_MAX_AGE: int = 604800    # 7 days in seconds
