@@ -171,21 +171,50 @@ def main(verbose=False):
 
         log.info(f"Retrieved {len(counties)} counties for {state_name}")
 
+        # PERF FIX: Batch county detail fetching instead of N+1 individual requests.
+        # First, collect all county IDs, then fetch details in batches.
+        county_ids = []
+        county_map = {}
         for c in counties:
-            time.sleep(0.1)  # small delay to prevent flooding API
             ctid = c.get("ctid") or c.get("cntid") or c.get("id")
             if not ctid:
                 total_skipped += 1
                 log.warning(f"Skipping county (missing ctid): {c}")
                 continue
+            county_ids.append(ctid)
+            county_map[ctid] = c
 
+        # Fetch details in batches (the external API only supports single-county
+        # detail endpoints, so we still make individual calls but with concurrency
+        # via a thread pool to avoid serial blocking).
+        import concurrent.futures
+
+        def fetch_county_detail(ctid):
             detail_url = f"{base_url}{COUNTY_DETAIL_PATH_TEMPLATE.format(ctid)}"
             try:
-                detail = fetch_json(detail_url, headers)
-                c.update(detail)
+                return ctid, fetch_json(detail_url, headers)
             except Exception as e:
                 log.warning(f"Failed to fetch detail for county {ctid}: {e}")
+                return ctid, None
+
+        BATCH_SIZE = 10  # concurrent requests per batch
+        details = {}
+        for i in range(0, len(county_ids), BATCH_SIZE):
+            batch = county_ids[i:i + BATCH_SIZE]
+            with concurrent.futures.ThreadPoolExecutor(max_workers=BATCH_SIZE) as executor:
+                results = executor.map(fetch_county_detail, batch)
+                for ctid, detail in results:
+                    if detail is not None:
+                        details[ctid] = detail
+            time.sleep(0.2)  # small delay between batches
+
+        for ctid in county_ids:
+            if ctid not in details:
+                total_skipped += 1
                 continue
+            detail = details[ctid]
+            c = county_map[ctid]
+            c.update(detail)
 
             row = {
                 "cntid": int(ctid),

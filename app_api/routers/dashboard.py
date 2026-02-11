@@ -35,6 +35,25 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# ============================================================
+# In-memory TTL cache for dashboard stats
+# ============================================================
+import time as _time
+
+_stats_cache: dict = {}  # key -> {"data": ..., "expires": float}
+_STATS_TTL = 60  # seconds
+
+
+def _cache_get(key: str):
+    entry = _stats_cache.get(key)
+    if entry and entry["expires"] > _time.time():
+        return entry["data"]
+    return None
+
+
+def _cache_set(key: str, data, ttl: int = _STATS_TTL):
+    _stats_cache[key] = {"data": data, "expires": _time.time() + ttl}
+
 # S3/MinIO client for presigned URLs
 _s3_client = None
 
@@ -53,10 +72,21 @@ def get_s3_client():
     return _s3_client
 
 
+# PERF FIX: Cache presigned URLs to avoid generating one per row per request.
+# URLs are valid for 1 hour; we cache for 30 minutes (safe margin).
+_presigned_cache: dict = {}  # s3_key -> {"url": str, "expires": float}
+_PRESIGNED_TTL = 1800  # 30 minutes
+
+
 def build_audio_url(s3_key: Optional[str]) -> Optional[str]:
-    """Generate presigned URL for audio file in MinIO."""
+    """Generate presigned URL for audio file in MinIO (cached)."""
     if not s3_key:
         return None
+
+    cached = _presigned_cache.get(s3_key)
+    if cached and cached["expires"] > _time.time():
+        return cached["url"]
+
     try:
         client = get_s3_client()
         url = client.generate_presigned_url(
@@ -67,6 +97,7 @@ def build_audio_url(s3_key: Optional[str]) -> Optional[str]:
             },
             ExpiresIn=3600,  # URL valid for 1 hour
         )
+        _presigned_cache[s3_key] = {"url": url, "expires": _time.time() + _PRESIGNED_TTL}
         return url
     except ClientError as e:
         logger.error(f"Error generating presigned URL for {s3_key}: {e}")
@@ -196,39 +227,36 @@ async def get_dashboard_stats(
     Returns counts of user's subscribed feeds, recent calls (1h),
     and recent transcripts (24h).
     """
+    # PERF FIX: Cache dashboard stats per user for 60s to avoid 3 queries per load
+    cache_key = f"dashboard_stats:{user.id}"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     async with pool.acquire() as conn:
-        # Count user's subscriptions
-        my_feeds = await conn.fetchval(
-            "SELECT COUNT(*) FROM user_subscriptions WHERE user_id = $1",
-            user.id
-        )
-
-        # Count calls from subscribed feeds in last hour
-        my_calls_1h = await conn.fetchval(
+        # Combined into a single query to reduce round-trips
+        row = await conn.fetchrow(
             """
-            SELECT COUNT(*) FROM bcfy_calls_raw c
-            JOIN user_subscriptions us ON c.playlist_uuid = us.playlist_uuid
-            WHERE us.user_id = $1 AND c.started_at > NOW() - INTERVAL '1 hour'
+            SELECT
+                (SELECT COUNT(*) FROM user_subscriptions WHERE user_id = $1) as my_feeds,
+                (SELECT COUNT(*) FROM bcfy_calls_raw c
+                 JOIN user_subscriptions us ON c.playlist_uuid = us.playlist_uuid
+                 WHERE us.user_id = $1 AND c.started_at > NOW() - INTERVAL '1 hour') as my_calls_1h,
+                (SELECT COUNT(*) FROM transcripts t
+                 JOIN bcfy_calls_raw c ON t.call_uid = c.call_uid
+                 JOIN user_subscriptions us ON c.playlist_uuid = us.playlist_uuid
+                 WHERE us.user_id = $1 AND t.created_at > NOW() - INTERVAL '24 hours') as my_transcripts_24h
             """,
             user.id
         )
 
-        # Count transcripts from subscribed feeds in last 24 hours
-        my_transcripts_24h = await conn.fetchval(
-            """
-            SELECT COUNT(*) FROM transcripts t
-            JOIN bcfy_calls_raw c ON t.call_uid = c.call_uid
-            JOIN user_subscriptions us ON c.playlist_uuid = us.playlist_uuid
-            WHERE us.user_id = $1 AND t.created_at > NOW() - INTERVAL '24 hours'
-            """,
-            user.id
+        result = transform_stats_response(
+            row['my_feeds'] or 0,
+            row['my_calls_1h'] or 0,
+            row['my_transcripts_24h'] or 0
         )
-
-        return transform_stats_response(
-            my_feeds or 0,
-            my_calls_1h or 0,
-            my_transcripts_24h or 0
-        )
+        _cache_set(cache_key, result)
+        return result
 
 
 # ============================================================

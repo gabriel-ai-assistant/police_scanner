@@ -21,7 +21,8 @@ async def health_check():
     except Exception as e:
         db_status = f"unhealthy: {str(e)}"
 
-    # TODO: Add Redis health check if implemented
+    # NOTE: Redis is running in docker-compose (used by Celery for broker/backend)
+    # but app_api doesn't use it directly yet. See config.py for details.
     redis_status = "not_configured"
 
     return HealthStatus(

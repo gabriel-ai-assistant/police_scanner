@@ -10,7 +10,10 @@ class Settings(BaseSettings):
     PGPASSWORD: str
     PGDATABASE: str = "scanner"
 
-    # Redis
+    # Redis — configured in docker-compose.yml (used by Celery broker/backend)
+    # but NOT used by the FastAPI app_api yet. The app uses in-memory TTL caches
+    # for dashboard stats and presigned URLs. Consider migrating to Redis for
+    # shared/distributed caching when scaling beyond a single API process.
     REDIS_URL: str = "redis://redis:6379/0"
 
     # API
