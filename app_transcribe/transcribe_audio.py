@@ -12,7 +12,7 @@ DB = {
     "port": os.getenv("PGPORT", "5432"),
     "dbname": os.getenv("PGDATABASE", "scanner"),
     "user": os.getenv("PGUSER", "scanner"),
-    "password": os.getenv("PGPASSWORD", "scanner"),
+    "password": os.getenv("PGPASSWORD"),
 }
 
 BUCKET_PATH = os.getenv("AUDIO_BUCKET_PATH", "calls")
