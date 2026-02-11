@@ -17,6 +17,7 @@ from get_cache_common_data import refresh_common
 from get_calls import ingest_loop
 from audio_worker import process_pending_audio
 from transcription_dispatcher import dispatch_transcription_tasks
+from db_pool import close_pool
 
 # -----------------------------------------------------------------
 # Setup
@@ -114,6 +115,10 @@ async def main():
             await asyncio.sleep(1)
     except (KeyboardInterrupt, SystemExit):
         log.warning("🛑 Scheduler stopped manually.")
+    finally:
+        sched.shutdown(wait=False)
+        await close_pool()
+        log.info("🧹 Database pool closed.")
 
 # -----------------------------------------------------------------
 if __name__ == "__main__":
