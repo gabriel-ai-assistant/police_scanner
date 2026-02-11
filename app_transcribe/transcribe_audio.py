@@ -1,3 +1,18 @@
+# =============================================================================
+# DEPRECATED / LEGACY — kept for reference only.
+#
+# This module uses faster_whisper for local GPU-based transcription.
+# The production transcription path is worker.py (Celery + OpenAI Whisper API).
+#
+# Key differences from worker.py:
+#   - Uses faster_whisper (local GPU) instead of OpenAI Whisper API
+#   - References column "recording_id" instead of "call_uid"
+#   - Contains hardcoded DB credentials (not production-safe)
+#
+# Do not use in production. Retained in case the local faster_whisper path
+# is needed for offline/GPU transcription in the future.
+# =============================================================================
+
 import os, psycopg2, boto3, tempfile, re, logging
 from faster_whisper import WhisperModel
 from datetime import datetime, timezone

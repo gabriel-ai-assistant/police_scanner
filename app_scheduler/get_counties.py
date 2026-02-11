@@ -211,6 +211,8 @@ def main(verbose=False):
                         details[ctid] = detail
                 time.sleep(0.2)  # small delay between batches
 
+            # Upsert serially on the main thread's connection to avoid
+            # thread-safety issues with psycopg2 connections.
             for ctid in county_ids:
                 if ctid not in details:
                     total_skipped += 1
