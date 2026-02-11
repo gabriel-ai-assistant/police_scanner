@@ -18,6 +18,7 @@ from models.auth import (
     User,
     UserUpdate,
     UserRoleUpdate,
+    UserStatusUpdate,
     SessionRequest,
     CurrentUser,
     UserListResponse,
@@ -462,7 +463,7 @@ async def update_user_role(
 @admin_router.patch("/users/{user_id}/status")
 async def update_user_status(
     user_id: str,
-    is_active: bool,
+    body: UserStatusUpdate,
     request: Request,
     admin: CurrentUser = Depends(require_admin),
     pool: asyncpg.Pool = Depends(get_pool)
@@ -488,7 +489,7 @@ async def update_user_status(
             RETURNING *
             """,
             user_id,
-            is_active
+            body.is_active
         )
 
     if not row:
@@ -500,10 +501,10 @@ async def update_user_status(
     # Log the status change
     await log_auth_event(
         pool, user_id, "status_change", request,
-        {"is_active": is_active, "changed_by": admin.id}
+        {"is_active": body.is_active, "changed_by": admin.id}
     )
 
-    action = "enabled" if is_active else "disabled"
+    action = "enabled" if body.is_active else "disabled"
     logger.info(f"Admin {admin.email} {action} user {user_id}")
 
     return transform_user_response(dict(row))

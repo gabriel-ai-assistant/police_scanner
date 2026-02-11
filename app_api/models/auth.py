@@ -68,6 +68,11 @@ class UserRoleUpdate(BaseModel):
     role: str = Field(..., pattern="^(user|admin)$")
 
 
+class UserStatusUpdate(BaseModel):
+    """Request body for updating user active status."""
+    is_active: bool
+
+
 class SessionRequest(BaseModel):
     """Request body for creating a session from Firebase token."""
     id_token: str = Field(..., description="Firebase ID token from client")
