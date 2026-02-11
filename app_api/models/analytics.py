@@ -37,7 +37,7 @@ class DashboardMetrics(BaseModel):
     feedCount: Optional[int] = None
     activeFeeds: Optional[int] = None
     recentCalls: Optional[int] = None
-    transcriptsToday: Optional[str] = None
+    transcriptsToday: Optional[int] = None
 
 
 class QualityDistribution(BaseModel):
