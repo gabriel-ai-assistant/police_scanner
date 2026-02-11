@@ -21,8 +21,8 @@ All secrets are managed via environment variables (`.env` file). Copy `.env.exam
 
 | Variable | Description | Example |
 |---|---|---|
-| `SIGNAL_FROM_NUMBER` | Sender phone number | `+14699966521` |
-| `SIGNAL_RECIPIENTS` | Comma-separated recipient numbers | `+14252390792,+15551234567` |
+| `SIGNAL_FROM_NUMBER` | Sender phone number | `+15551234567` |
+| `SIGNAL_RECIPIENTS` | Comma-separated recipient numbers | `+15559876543,+15551234567` |
 | `SIGNAL_CLI_BIN` | Path to signal-cli binary | `/opt/scanner/signal-cli/.../signal-cli` |
 
 ## Whisper (Transcription)

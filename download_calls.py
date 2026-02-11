@@ -139,11 +139,13 @@ with open(SEEN_FILE, "w") as f:
     f.write("\n".join(seen))
 logging.debug(f"Saved {len(seen)} seen call IDs to {SEEN_FILE}")
 
-# Update last_pos in config and save
+# Update last_pos in config file (load fresh to avoid writing merged secrets)
 if "lastPos" in data:
-    b_cfg["last_pos"] = data["lastPos"]
+    with open(CONFIG_PATH, "r") as f:
+        file_cfg = yaml.safe_load(f) or {}
+    file_cfg.setdefault("broadcastify", {})["last_pos"] = data["lastPos"]
     with open(CONFIG_PATH, "w") as f:
-        yaml.safe_dump(cfg, f)
+        yaml.safe_dump(file_cfg, f)
     logging.info(f"Updated last_pos to {data['lastPos']} in {CONFIG_PATH}")
 
 logging.info("Completed download_calls.py run")
