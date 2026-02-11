@@ -1,37 +1,39 @@
+# config.yaml.example
+# Non-secret configuration. Secrets are loaded from environment variables.
+# See docs/SECRETS.md for the full list of required env vars.
+# Copy this to config.yaml and adjust paths as needed.
+
 broadcastify:
-  cookies:
-    __eoi: your-cookie-value-here
-    __gads: your-cookie-value-here
-    __gpi: your-cookie-value-here
-    _awl: your-cookie-value-here
+  # URL, playlist_uuid, sessionKey, and cookies are loaded from env vars.
+  # Set them in .env (see .env.example).
   headers:
     Accept: '*/*'
     Accept-Language: en-US,en;q=0.9
     Content-Type: application/x-www-form-urlencoded; charset=UTF-8
     Origin: https://www.broadcastify.com
-    Referer: https://www.broadcastify.com/calls/playlists/?uuid=your-playlist-uuid
+    Referer: https://www.broadcastify.com/calls/playlists/
     User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)...
     X-Requested-With: XMLHttpRequest
   last_pos: 0
-  playlist_uuid: your-playlist-uuid-here
-  poll_interval_seconds: 3
-  sessionKey: your-session-key-here
-  url: https://www.broadcastify.com/calls/apis/live-calls
+
 data:
   audio_dir: data/audio
   delete_audio_after_transcribe: true
   seen_calls_file: data/seen_calls.txt
   transcript_dir: data/transcripts
+
 keywords:
   case_sensitive: false
   file: keywords.txt
   min_hits: 1
+
 logging:
   console: true
   level: Debug
   logfile: data/logs/scanner.log
+
 signal:
-  from_number: '+1234567890'
+  # from_number, recipients, and signal_cli_bin are loaded from env vars.
   message_template: '[Police Scanner]
 
     Keyword(s): {keywords}
@@ -43,10 +45,7 @@ signal:
     {transcript}
 
     '
-  recipients:
-  - '+1234567890'
-  signal_cli_bin: /opt/scanner/signal-cli/build/install/signal-cli/bin/signal-cli
+
 whisper:
-  device: cpu
+  # model and device are loaded from env vars.
   language: en
-  model: base
