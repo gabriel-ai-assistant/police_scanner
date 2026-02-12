@@ -7,6 +7,7 @@ from config import settings
 from database import close_pool, get_pool
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from routers import (
     analytics,
     auth,
@@ -58,6 +59,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+# Prometheus metrics (public /metrics endpoint for scraping)
+Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 # CORS middleware
 app.add_middleware(
