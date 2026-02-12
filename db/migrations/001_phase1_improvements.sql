@@ -102,8 +102,8 @@ CREATE INDEX IF NOT EXISTS processing_state_queue_idx
 DO $$BEGIN RAISE NOTICE 'Creating indexes on system_logs...'; END$$;
 
 -- Composite index for component + severity + time
-CREATE INDEX IF NOT EXISTS system_logs_component_severity_time_idx
-  ON system_logs(component, severity, timestamp DESC);
+CREATE INDEX IF NOT EXISTS system_logs_component_event_time_idx
+  ON system_logs(component, event_type, created_at DESC);
 
 -- 2.6 api_call_metrics indexes
 DO $$BEGIN RAISE NOTICE 'Creating indexes on api_call_metrics...'; END$$;
