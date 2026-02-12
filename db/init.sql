@@ -272,9 +272,9 @@ CREATE OR REPLACE VIEW monitoring.table_health AS
 SELECT
   schemaname,
   tablename,
-  pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS total_size,
-  pg_size_pretty(pg_relation_size(schemaname||'.'||tablename)) AS table_size,
-  pg_size_pretty(pg_indexes_size(schemaname||'.'||tablename)) AS indexes_size,
+  pg_size_pretty(pg_total_relation_size(relid)) AS total_size,
+  pg_size_pretty(pg_relation_size(relid)) AS table_size,
+  pg_size_pretty(pg_indexes_size(relid)) AS indexes_size,
   n_live_tup AS live_rows,
   n_dead_tup AS dead_rows,
   ROUND(100.0 * n_dead_tup / NULLIF(n_live_tup + n_dead_tup, 0), 2) AS dead_ratio_pct,
@@ -283,7 +283,7 @@ SELECT
   last_analyze,
   last_autoanalyze
 FROM pg_stat_user_tables
-ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+ORDER BY pg_total_relation_size(relid) DESC;
 
 -- View 2: Index usage statistics
 CREATE OR REPLACE VIEW monitoring.index_usage AS
@@ -308,7 +308,7 @@ CREATE OR REPLACE VIEW monitoring.table_bloat AS
 SELECT
   schemaname,
   tablename,
-  pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS total_size,
+  pg_size_pretty(pg_total_relation_size(relid)) AS total_size,
   n_live_tup AS live_rows,
   n_dead_tup AS dead_rows,
   ROUND(100 * (n_dead_tup::numeric / NULLIF(n_live_tup + n_dead_tup, 0)), 2) AS bloat_pct,
