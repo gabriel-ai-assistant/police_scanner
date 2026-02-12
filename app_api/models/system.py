@@ -1,6 +1,6 @@
-from pydantic import BaseModel
-from typing import Optional, Dict
 from datetime import datetime
+
+from pydantic import BaseModel
 
 
 class SystemLog(BaseModel):
@@ -10,9 +10,9 @@ class SystemLog(BaseModel):
     component: str
     event_type: str
     severity: str
-    message: Optional[str] = None
-    metadata: Optional[Dict] = None
-    duration_ms: Optional[int] = None
+    message: str | None = None
+    metadata: dict | None = None
+    duration_ms: int | None = None
 
     class Config:
         from_attributes = True

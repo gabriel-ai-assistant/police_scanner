@@ -4,16 +4,17 @@ Locations API Router
 Endpoints for querying geocoded locations from police scanner transcripts.
 Used for map visualization and heatmap features.
 """
-from fastapi import APIRouter, Query, Depends, HTTPException
-from typing import Optional, List
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
-import asyncpg
 
+import asyncpg
 from database import get_pool
+from fastapi import APIRouter, Depends, HTTPException, Query
 from models.locations import (
-    Location, LocationWithContext, LocationListResponse,
-    HeatmapResponse, HeatmapPoint
+    HeatmapPoint,
+    HeatmapResponse,
+    LocationListResponse,
+    LocationWithContext,
 )
 
 router = APIRouter()
@@ -31,10 +32,10 @@ def transform_location_row(row: dict) -> dict:
 
 @router.get("", response_model=LocationListResponse)
 async def list_locations(
-    feed_id: Optional[UUID] = Query(None, description="Filter by playlist/feed UUID"),
-    bbox: Optional[str] = Query(None, description="Bounding box: sw_lat,sw_lon,ne_lat,ne_lon"),
-    since: Optional[datetime] = Query(None, description="Only locations since this timestamp"),
-    hours: Optional[int] = Query(None, ge=1, le=720, description="Locations from last N hours"),
+    feed_id: UUID | None = Query(None, description="Filter by playlist/feed UUID"),
+    bbox: str | None = Query(None, description="Bounding box: sw_lat,sw_lon,ne_lat,ne_lon"),
+    since: datetime | None = Query(None, description="Only locations since this timestamp"),
+    hours: int | None = Query(None, ge=1, le=720, description="Locations from last N hours"),
     limit: int = Query(500, ge=1, le=5000),
     offset: int = Query(0, ge=0),
     pool: asyncpg.Pool = Depends(get_pool)
@@ -86,7 +87,7 @@ async def list_locations(
 
     # Filter by time
     if hours:
-        since_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+        since_time = datetime.now(UTC) - timedelta(hours=hours)
         query += f" AND l.created_at >= ${param_count}"
         params.append(since_time)
         param_count += 1
@@ -116,7 +117,7 @@ async def list_locations(
 
 @router.get("/heatmap", response_model=HeatmapResponse)
 async def get_heatmap(
-    feed_id: Optional[UUID] = Query(None, description="Filter by playlist/feed UUID"),
+    feed_id: UUID | None = Query(None, description="Filter by playlist/feed UUID"),
     hours: int = Query(24, ge=1, le=720, description="Time window in hours"),
     grid_precision: int = Query(3, ge=2, le=5, description="Grid precision (decimals)"),
     pool: asyncpg.Pool = Depends(get_pool)
@@ -131,9 +132,9 @@ async def get_heatmap(
     - 4 = ~10m cells
     - 5 = ~1m cells
     """
-    since_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+    since_time = datetime.now(UTC) - timedelta(hours=hours)
 
-    query = f"""
+    query = """
         SELECT
             ROUND(latitude::numeric, $1) as lat_grid,
             ROUND(longitude::numeric, $1) as lon_grid,
@@ -228,12 +229,12 @@ async def get_location(
 
 @router.get("/stats/summary")
 async def get_location_stats(
-    feed_id: Optional[UUID] = Query(None, description="Filter by playlist/feed UUID"),
+    feed_id: UUID | None = Query(None, description="Filter by playlist/feed UUID"),
     hours: int = Query(24, ge=1, le=720, description="Time window in hours"),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get summary statistics for locations."""
-    since_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+    since_time = datetime.now(UTC) - timedelta(hours=hours)
 
     query = """
         SELECT

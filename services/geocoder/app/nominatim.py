@@ -6,11 +6,9 @@ Rate limited to 1 request per second per OSM policy.
 import asyncio
 import hashlib
 import logging
-from typing import Optional
-from datetime import datetime, timezone
 
-import httpx
 import asyncpg
+import httpx
 
 from app.config import settings
 from app.models import GeocodeRequest, GeocodeResult
@@ -23,7 +21,7 @@ class RateLimiter:
 
     def __init__(self, rate_per_second: float = 1.0):
         self.rate = rate_per_second
-        self.last_request: Optional[float] = None
+        self.last_request: float | None = None
         self._lock = asyncio.Lock()
 
     async def acquire(self):
@@ -47,13 +45,13 @@ class NominatimClient:
         self.base_url = settings.NOMINATIM_URL
         self.user_agent = settings.NOMINATIM_USER_AGENT
 
-    def _make_cache_key(self, query: str, bias_city: Optional[str],
-                        bias_state: Optional[str], bias_country: str) -> str:
+    def _make_cache_key(self, query: str, bias_city: str | None,
+                        bias_state: str | None, bias_country: str) -> str:
         """Create a cache key hash for the query."""
         normalized = f"{query.lower().strip()}|{(bias_city or '').lower()}|{(bias_state or '').lower()}|{bias_country.lower()}"
         return hashlib.sha256(normalized.encode()).hexdigest()
 
-    async def _check_cache(self, query_hash: str) -> Optional[GeocodeResult]:
+    async def _check_cache(self, query_hash: str) -> GeocodeResult | None:
         """Check if we have a cached result."""
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow("""
@@ -82,7 +80,7 @@ class NominatimClient:
         return None
 
     async def _save_cache(self, query_hash: str, query_text: str,
-                          bias_city: Optional[str], bias_state: Optional[str],
+                          bias_city: str | None, bias_state: str | None,
                           bias_country: str, result: GeocodeResult,
                           raw_response: dict):
         """Save geocode result to cache."""

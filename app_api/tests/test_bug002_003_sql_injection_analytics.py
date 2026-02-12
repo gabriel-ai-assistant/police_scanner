@@ -5,10 +5,9 @@ Tests that SQL queries use parameterized queries ($1, $2) instead of
 string interpolation (% or f-strings).
 """
 
+import inspect
 import os
 import sys
-import inspect
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 

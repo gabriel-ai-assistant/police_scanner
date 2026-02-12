@@ -1,6 +1,6 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict
 
 
 class TranscriptBase(BaseModel):
@@ -8,23 +8,23 @@ class TranscriptBase(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
     call_uid: str
-    text: Optional[str] = None
-    confidence: Optional[float] = None
-    duration_seconds: Optional[float] = None
-    language: Optional[str] = None
-    model_name: Optional[str] = None
+    text: str | None = None
+    confidence: float | None = None
+    duration_seconds: float | None = None
+    language: str | None = None
+    model_name: str | None = None
 
 
 class Transcript(TranscriptBase):
     """Full transcript model."""
     id: int
-    created_at: Optional[datetime] = None
-    recording_id: Optional[int] = None
+    created_at: datetime | None = None
+    recording_id: int | None = None
 
     # Transformed fields (added by API transformer for frontend compatibility)
-    createdAt: Optional[str] = None
-    callId: Optional[str] = None
-    segments: Optional[list] = None
+    createdAt: str | None = None
+    callId: str | None = None
+    segments: list | None = None
 
     class Config:
         from_attributes = True
@@ -32,7 +32,7 @@ class Transcript(TranscriptBase):
 
 class TranscriptSearchResult(Transcript):
     """Transcript search result with relevance rank."""
-    rank: Optional[float] = None
+    rank: float | None = None
 
 
 class TranscriptionQuality(BaseModel):

@@ -1,10 +1,9 @@
 import asyncio
+
 import asyncpg
-from typing import Optional
 from config import settings
 
-
-_pool: Optional[asyncpg.Pool] = None
+_pool: asyncpg.Pool | None = None
 _pool_lock = asyncio.Lock()
 
 

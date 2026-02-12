@@ -1,19 +1,20 @@
-from fastapi import APIRouter, Query, Depends
-from typing import List, Dict, Any
-from datetime import datetime, timedelta
-import asyncpg
+from typing import Any
 
+import asyncpg
 from database import get_pool
+from fastapi import APIRouter, Depends, Query
 from models.analytics import (
-    KeywordHit, HourlyPoint, TalkgroupHit, DashboardMetrics,
-    QualityDistribution, ApiMetricsSummary
+    DashboardMetrics,
+    HourlyPoint,
+    KeywordHit,
+    QualityDistribution,
+    TalkgroupHit,
 )
-from models.calls import CallMetadata
 
 router = APIRouter()
 
 
-def transform_dashboard_metrics(metrics: DashboardMetrics) -> Dict[str, Any]:
+def transform_dashboard_metrics(metrics: DashboardMetrics) -> dict[str, Any]:
     """
     Transform dashboard metrics to include frontend-expected field names.
 
@@ -113,7 +114,7 @@ async def get_dashboard_metrics(
     return transform_dashboard_metrics(metrics)
 
 
-@router.get("/hourly", response_model=List[HourlyPoint])
+@router.get("/hourly", response_model=list[HourlyPoint])
 async def get_hourly_activity(
     hours: int = Query(24, ge=1, le=168),
     pool: asyncpg.Pool = Depends(get_pool)
@@ -135,7 +136,7 @@ async def get_hourly_activity(
     return [HourlyPoint(hour=row["hour"], count=row["count"]) for row in rows]
 
 
-@router.get("/talkgroups/top", response_model=List[TalkgroupHit])
+@router.get("/talkgroups/top", response_model=list[TalkgroupHit])
 async def get_top_talkgroups(
     limit: int = Query(10, ge=1, le=100),
     period: str = Query("24h"),
@@ -165,10 +166,10 @@ async def get_top_talkgroups(
     return [TalkgroupHit(tg_id=row["tg_id"], count=row["count"]) for row in rows]
 
 
-@router.get("/keywords", response_model=List[KeywordHit])
+@router.get("/keywords", response_model=list[KeywordHit])
 async def get_keyword_hits(
-    limit: int = Query(10, ge=1, le=100),
-    pool: asyncpg.Pool = Depends(get_pool)
+    _limit: int = Query(10, ge=1, le=100),
+    _pool: asyncpg.Pool = Depends(get_pool)
 ):
     """Get keyword hit counts (placeholder - needs keywords table)."""
     # TODO: Implement when keywords table/system is available

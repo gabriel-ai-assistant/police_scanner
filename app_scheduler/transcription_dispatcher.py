@@ -9,8 +9,8 @@ to the transcription worker.
 import asyncio
 import logging
 import os
-from datetime import datetime, timedelta, timezone
-from typing import List, Dict, Any
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from celery import Celery
 from db_pool import get_connection, release_connection
@@ -32,7 +32,7 @@ MAX_AGE_HOURS = int(os.getenv("TRANSCRIPTION_MAX_AGE_HOURS", "72"))
 RATE_LIMIT_DELAY = float(os.getenv("TRANSCRIPTION_RATE_LIMIT_DELAY", "0.5"))
 
 
-async def get_pending_transcriptions(conn, batch_size: int, max_age_hours: int) -> List[Dict[str, Any]]:
+async def get_pending_transcriptions(conn, batch_size: int, max_age_hours: int) -> list[dict[str, Any]]:
     """
     Query for calls that need transcription.
 
@@ -43,7 +43,7 @@ async def get_pending_transcriptions(conn, batch_size: int, max_age_hours: int) 
     - Not too old (within max_age_hours)
     - No active error in processing_state (or error with retries available)
     """
-    cutoff_time = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
+    cutoff_time = datetime.now(UTC) - timedelta(hours=max_age_hours)
 
     rows = await conn.fetch("""
         SELECT

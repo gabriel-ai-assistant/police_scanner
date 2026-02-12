@@ -7,31 +7,27 @@ Handles keyword groups, keywords within groups, bulk import, and template clonin
 import logging
 import re
 import uuid as uuid_lib
-from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
 import asyncpg
-
+from auth.dependencies import require_auth
 from database import get_pool
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from models.auth import CurrentUser
 from models.keyword_groups import (
-    KeywordGroup,
-    KeywordGroupCreate,
-    KeywordGroupUpdate,
-    KeywordGroupSummary,
-    KeywordGroupListResponse,
-    KeywordGroupDetail,
-    TemplateListResponse,
+    BulkImportResponse,
+    BulkKeywordImport,
+    CloneTemplateRequest,
     Keyword,
     KeywordCreate,
-    KeywordUpdate,
+    KeywordGroup,
+    KeywordGroupCreate,
+    KeywordGroupDetail,
+    KeywordGroupListResponse,
+    KeywordGroupUpdate,
     KeywordListResponse,
-    BulkKeywordImport,
-    BulkImportResponse,
-    CloneTemplateRequest,
-    LinkedSubscription,
+    KeywordUpdate,
+    TemplateListResponse,
 )
-from auth.dependencies import require_auth
 
 logger = logging.getLogger(__name__)
 
@@ -179,7 +175,7 @@ async def list_keyword_groups(
 
 @router.get("/templates", response_model=TemplateListResponse)
 async def list_templates(
-    user: CurrentUser = Depends(require_auth),
+    _user: CurrentUser = Depends(require_auth),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """

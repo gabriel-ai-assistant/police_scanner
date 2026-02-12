@@ -4,14 +4,10 @@ Tests for bug fixes in app_api.
 Each test is designed to FAIL if the corresponding fix is reverted.
 Uses source-level inspection to avoid heavy dependencies (firebase_admin, boto3).
 """
-import ast
-import inspect
 import os
 import re
 import sys
 from uuid import UUID
-
-import pytest
 
 # Ensure app_api is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -169,9 +165,9 @@ class TestBUG019TranscriptsTodayType:
         if hasattr(annotation, '__origin__') and annotation.__origin__ is typing.Union:
             args = [a for a in annotation.__args__ if a is not type(None)]
             assert str not in args, \
-                f"transcriptsToday is Optional[str], should be Optional[int]"
+                "transcriptsToday is Optional[str], should be Optional[int]"
             assert int in args, \
                 f"transcriptsToday should include int type, got {args}"
         else:
             assert annotation is not str, \
-                f"transcriptsToday annotation is str, should be int"
+                "transcriptsToday annotation is str, should be int"

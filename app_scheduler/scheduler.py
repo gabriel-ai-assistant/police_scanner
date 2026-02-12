@@ -11,19 +11,20 @@ Production features:
  • Health file touch at /tmp/scheduler_healthy for file-based probes
 """
 
+import asyncio
+import logging
 import os
 import signal
-import logging
-import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 from aiohttp import web
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from audio_worker import process_pending_audio
+from db_pool import close_pool
 from dotenv import load_dotenv
 from get_cache_common_data import refresh_common
 from get_calls import ingest_loop
-from audio_worker import process_pending_audio
 from transcription_dispatcher import dispatch_transcription_tasks
-from db_pool import close_pool
 
 # -----------------------------------------------------------------
 # Setup
@@ -69,7 +70,7 @@ def _touch_health_file():
     """Touch health file to signal liveness to Docker / external probes."""
     try:
         with open(HEALTH_FILE, "w") as f:
-            f.write(datetime.now(timezone.utc).isoformat())
+            f.write(datetime.now(UTC).isoformat())
     except Exception:
         pass  # Non-critical
 
@@ -85,7 +86,7 @@ def _remove_health_file():
 # -----------------------------------------------------------------
 # Health check HTTP server
 # -----------------------------------------------------------------
-async def _health_handler(request):
+async def _health_handler(_request):
     """HTTP health endpoint for Docker healthcheck."""
     if _is_shutting_down():
         return web.json_response(
@@ -95,7 +96,7 @@ async def _health_handler(request):
     return web.json_response({
         "status": "healthy",
         "active_jobs": _active_jobs,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     })
 
 

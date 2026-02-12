@@ -1,6 +1,6 @@
-from pydantic import BaseModel
-from typing import Optional, List
 from datetime import datetime
+
+from pydantic import BaseModel
 
 
 class Country(BaseModel):
@@ -8,10 +8,10 @@ class Country(BaseModel):
     coid: int
     country_name: str
     country_code: str
-    iso_alpha2: Optional[str] = None
+    iso_alpha2: str | None = None
     sync: bool = False
     is_active: bool = True
-    fetched_at: Optional[datetime] = None
+    fetched_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -25,7 +25,7 @@ class State(BaseModel):
     state_code: str
     sync: bool = False
     is_active: bool = True
-    fetched_at: Optional[datetime] = None
+    fetched_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -37,16 +37,16 @@ class County(BaseModel):
     stid: int
     coid: int
     county_name: str
-    county_header: Optional[str] = None
-    state_name: Optional[str] = None
-    state_code: Optional[str] = None
-    country_name: Optional[str] = None
-    lat: Optional[float] = None
-    lon: Optional[float] = None
-    timezone_str: Optional[str] = None
+    county_header: str | None = None
+    state_name: str | None = None
+    state_code: str | None = None
+    country_name: str | None = None
+    lat: float | None = None
+    lon: float | None = None
+    timezone_str: str | None = None
     sync: bool = False
     is_active: bool = True
-    fetched_at: Optional[datetime] = None
+    fetched_at: datetime | None = None
 
     class Config:
         from_attributes = True

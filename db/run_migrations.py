@@ -4,9 +4,9 @@ Simplified Migration Runner - Execute statements one at a time
 """
 
 import asyncio
-import asyncpg
 import sys
-import re
+
+import asyncpg
 
 DATABASE_URL = "postgresql://scan:DuL7tZ6yKKbRmP*BWkc*JgtQi_.siE.iKiK2qskATMpKuFjAoNJhWvsCf*@police-scanner.cilycke4i4nz.us-east-1.rds.amazonaws.com:5432/scanner"
 
@@ -32,7 +32,7 @@ async def run():
             print("="*80 + "\n")
 
             try:
-                with open(filepath, 'r') as f:
+                with open(filepath) as f:
                     content = f.read()
 
                 # Split by semicolons, but be careful with strings
@@ -69,10 +69,7 @@ async def run():
                     except Exception as e:
                         error_msg = str(e)
                         # Some errors are OK (like "already exists")
-                        if "already exists" in error_msg.lower() or "duplicate" in error_msg.lower():
-                            executed += 1
-                            continue
-                        elif "does not exist" in error_msg.lower():
+                        if "already exists" in error_msg.lower() or "duplicate" in error_msg.lower() or "does not exist" in error_msg.lower():
                             executed += 1
                             continue
                         else:

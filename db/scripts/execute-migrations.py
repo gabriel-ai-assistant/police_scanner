@@ -5,13 +5,14 @@ Expert DBA Database Optimization
 """
 
 import asyncio
-import asyncpg
-import sys
-import os
-from pathlib import Path
-from datetime import datetime
 import subprocess
+import sys
 import time
+from datetime import datetime
+from pathlib import Path
+
+import asyncpg
+
 
 class MigrationExecutor:
     def __init__(self, database_url: str):
@@ -111,7 +112,7 @@ class MigrationExecutor:
 
         try:
             # Read SQL file
-            with open(file_path, 'r') as f:
+            with open(file_path) as f:
                 sql_content = f.read()
 
             # Execute SQL

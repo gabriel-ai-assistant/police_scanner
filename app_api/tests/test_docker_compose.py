@@ -3,6 +3,7 @@ Tests for docker-compose.yml service dependencies.
 BUG-025/026/027: Services must depend on postgres.
 """
 import os
+
 import pytest
 import yaml
 

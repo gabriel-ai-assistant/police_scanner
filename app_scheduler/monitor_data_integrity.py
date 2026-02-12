@@ -17,12 +17,11 @@ Usage:
     python monitor_data_integrity.py --json       # Output as JSON
 """
 
+import argparse
 import asyncio
 import json
-import os
 import sys
-import argparse
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime
 
 # Add shared modules to path
 sys.path.insert(0, '/app/shared_bcfy')
@@ -51,7 +50,7 @@ async def check_stuck_calls(conn, hours=1):
             {
                 'call_uid': r['call_uid'],
                 'fetched_at': r['fetched_at'].isoformat() if r['fetched_at'] else None,
-                'hours_stuck': round((datetime.now(timezone.utc) - r['fetched_at'].replace(tzinfo=timezone.utc)).total_seconds() / 3600, 1) if r['fetched_at'] else None
+                'hours_stuck': round((datetime.now(UTC) - r['fetched_at'].replace(tzinfo=UTC)).total_seconds() / 3600, 1) if r['fetched_at'] else None
             }
             for r in result[:5]
         ]
@@ -210,7 +209,7 @@ async def run_all_checks(output_json=False):
     conn = await get_connection()
     try:
         results = {
-            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'timestamp': datetime.now(UTC).isoformat(),
             'checks': []
         }
 
@@ -224,7 +223,7 @@ async def run_all_checks(output_json=False):
             ('Recent Logs', get_recent_system_logs(conn)),
         ]
 
-        for name, coro in checks:
+        for _name, coro in checks:
             result = await coro
             results['checks'].append(result)
 

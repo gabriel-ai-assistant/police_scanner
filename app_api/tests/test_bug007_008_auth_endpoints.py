@@ -11,7 +11,6 @@ Covers: geography, calls, transcripts, analytics, playlists, system,
 """
 
 import pytest
-import pytest_asyncio
 
 pytestmark = pytest.mark.asyncio
 

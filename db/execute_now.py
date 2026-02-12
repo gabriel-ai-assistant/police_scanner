@@ -4,9 +4,9 @@ Simplified Migration Executor for Windows
 """
 
 import asyncio
-import asyncpg
 import sys
-from pathlib import Path
+
+import asyncpg
 
 DATABASE_URL = "postgresql://scan:DuL7tZ6yKKbRmP*BWkc*JgtQi_.siE.iKiK2qskATMpKuFjAoNJhWvsCf*@police-scanner.cilycke4i4nz.us-east-1.rds.amazonaws.com:5432/scanner"
 
@@ -109,7 +109,7 @@ async def execute_migrations():
         # Check data
         calls = await conn.fetchval("SELECT COUNT(*) FROM bcfy_calls_raw")
         transcripts = await conn.fetchval("SELECT COUNT(*) FROM transcripts")
-        print(f"[OK] Data integrity verified:")
+        print("[OK] Data integrity verified:")
         print(f"     bcfy_calls_raw: {calls:,} rows")
         print(f"     transcripts: {transcripts:,} rows")
 

@@ -4,8 +4,9 @@ Final Migration Executor - Send full SQL files as single batches
 """
 
 import asyncio
-import asyncpg
 import sys
+
+import asyncpg
 
 DATABASE_URL = "postgresql://scan:DuL7tZ6yKKbRmP*BWkc*JgtQi_.siE.iKiK2qskATMpKuFjAoNJhWvsCf*@police-scanner.cilycke4i4nz.us-east-1.rds.amazonaws.com:5432/scanner"
 
@@ -35,7 +36,7 @@ async def run():
             print(f"[*] Loading {filepath}...")
 
             try:
-                with open(filepath, 'r') as f:
+                with open(filepath) as f:
                     sql_content = f.read()
 
                 print(f"[*] Executing {len(sql_content)} bytes of SQL...")
@@ -94,8 +95,8 @@ async def run():
                     WHERE table_schema = 'monitoring'
                 """)
                 print(f"[OK] Monitoring views: {monitoring_views}\n")
-            except:
-                print(f"[INFO] Monitoring schema may not be fully created\n")
+            except Exception:
+                print("[INFO] Monitoring schema may not be fully created\n")
 
         except Exception as e:
             print(f"[WARN] Verification error: {e}\n")

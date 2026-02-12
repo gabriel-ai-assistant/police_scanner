@@ -3,8 +3,8 @@ Centralized configuration loader.
 Reads from environment variables (preferred) with fallback to config.yaml.
 """
 import os
+
 import yaml
-import logging
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(SCRIPT_DIR, "config.yaml")
@@ -35,7 +35,7 @@ def load_config():
     k = yml.get("keywords", {})
     s = yml.get("signal", {})
     w = yml.get("whisper", {})
-    l = yml.get("logging", {})
+    log_cfg = yml.get("logging", {})
 
     return {
         "broadcastify": {
@@ -88,8 +88,8 @@ def load_config():
             "language": w.get("language", "en"),
         },
         "logging": {
-            "level": _env("LOG_LEVEL", l.get("level", "INFO")),
-            "console": _env("LOG_CONSOLE", str(l.get("console", False))).lower() in ("true", "1", "yes"),
-            "logfile": l.get("logfile", "data/logs/scanner.log"),
+            "level": _env("LOG_LEVEL", log_cfg.get("level", "INFO")),
+            "console": _env("LOG_CONSOLE", str(log_cfg.get("console", False))).lower() in ("true", "1", "yes"),
+            "logfile": log_cfg.get("logfile", "data/logs/scanner.log"),
         },
     }

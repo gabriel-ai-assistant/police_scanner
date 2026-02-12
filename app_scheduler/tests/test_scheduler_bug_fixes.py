@@ -5,8 +5,6 @@ Uses source-level inspection to avoid import issues with missing deps.
 import os
 import re
 
-import pytest
-
 SCHED_DIR = os.path.join(os.path.dirname(__file__), "..")
 
 

@@ -14,10 +14,8 @@ Tests:
 
 import asyncio
 import json
-import uuid
-import os
 import sys
-from datetime import datetime, timezone
+import uuid
 
 # Add shared modules to path
 sys.path.insert(0, '/app/shared_bcfy')

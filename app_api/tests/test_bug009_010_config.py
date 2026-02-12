@@ -7,6 +7,7 @@ Tests that config defaults are safe for production.
 
 import os
 import sys
+
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -47,7 +48,7 @@ class TestConfigDefaults:
                 assert 'True' in line, \
                     f"SESSION_COOKIE_SECURE should default to True, found: {line.strip()}"
                 assert 'False' not in line, \
-                    f"SESSION_COOKIE_SECURE must not default to False"
+                    "SESSION_COOKIE_SECURE must not default to False"
                 break
         else:
             pytest.fail("SESSION_COOKIE_SECURE field not found in config")
@@ -59,6 +60,7 @@ class TestConfigDefaults:
 
         # Re-import to pick up monkeypatched env
         from importlib import reload
+
         import config
         reload(config)
 

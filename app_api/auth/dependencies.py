@@ -5,15 +5,14 @@ These dependencies extract and validate user sessions from requests.
 """
 
 import logging
-from typing import Optional
 
-from fastapi import Depends, HTTPException, Request, status
 import asyncpg
-
 from config import settings
 from database import get_pool
+from fastapi import Depends, HTTPException, Request, status
 from models.auth import CurrentUser
-from .firebase import verify_session_cookie, is_firebase_initialized
+
+from .firebase import is_firebase_initialized, verify_session_cookie
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +20,7 @@ logger = logging.getLogger(__name__)
 async def get_current_user_optional(
     request: Request,
     pool: asyncpg.Pool = Depends(get_pool)
-) -> Optional[CurrentUser]:
+) -> CurrentUser | None:
     """
     Extract user from session cookie.
 
@@ -80,7 +79,7 @@ async def get_current_user_optional(
 async def get_current_user(
     request: Request,
     pool: asyncpg.Pool = Depends(get_pool)
-) -> Optional[CurrentUser]:
+) -> CurrentUser | None:
     """
     Alias for get_current_user_optional.
 
@@ -90,7 +89,7 @@ async def get_current_user(
 
 
 async def require_auth(
-    user: Optional[CurrentUser] = Depends(get_current_user_optional)
+    user: CurrentUser | None = Depends(get_current_user_optional)
 ) -> CurrentUser:
     """
     Require authenticated user.

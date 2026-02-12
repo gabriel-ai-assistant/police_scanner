@@ -1,15 +1,15 @@
-from fastapi import APIRouter, Query, Depends, HTTPException
-from typing import List, Optional, Dict, Any
-import asyncpg
 import json
+from typing import Any
 
+import asyncpg
 from database import get_pool
+from fastapi import APIRouter, Depends, HTTPException, Query
 from models.transcripts import Transcript, TranscriptSearchResult
 
 router = APIRouter()
 
 
-def transform_transcript_response(row: Dict[str, Any]) -> Dict[str, Any]:
+def transform_transcript_response(row: dict[str, Any]) -> dict[str, Any]:
     """
     Transform transcript database row to frontend-expected format.
 
@@ -58,11 +58,11 @@ def transform_transcript_response(row: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-@router.get("", response_model=List[Transcript])
+@router.get("", response_model=list[Transcript])
 async def list_transcripts(
     limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0),
-    min_confidence: Optional[float] = Query(None, ge=0, le=1),
+    min_confidence: float | None = Query(None, ge=0, le=1),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """List recent transcripts."""
@@ -84,7 +84,7 @@ async def list_transcripts(
     return [transform_transcript_response(dict(row)) for row in rows]
 
 
-@router.get("/search", response_model=List[TranscriptSearchResult])
+@router.get("/search", response_model=list[TranscriptSearchResult])
 async def search_transcripts(
     q: str = Query("", min_length=0),
     limit: int = Query(50, ge=1, le=1000),

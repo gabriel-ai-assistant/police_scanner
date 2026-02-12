@@ -6,29 +6,23 @@ Handles Firebase authentication, session management, and user operations.
 
 import json
 import logging
-from typing import Optional, List
-from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, Query, status
 import asyncpg
-
-from config import settings
-from database import get_pool
-from models.auth import (
-    User,
-    UserUpdate,
-    UserRoleUpdate,
-    SessionRequest,
-    CurrentUser,
-    UserListResponse,
-    AuthAuditLog,
-)
+from auth.dependencies import require_admin, require_auth
 from auth.firebase import (
-    verify_firebase_token,
     create_session_cookie,
     is_firebase_initialized,
+    verify_firebase_token,
 )
-from auth.dependencies import require_auth, require_admin, get_current_user_optional
+from config import settings
+from database import get_pool
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from models.auth import (
+    CurrentUser,
+    SessionRequest,
+    UserRoleUpdate,
+    UserUpdate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,10 +61,10 @@ def transform_user_response(row: dict) -> dict:
 
 async def log_auth_event(
     pool: asyncpg.Pool,
-    user_id: Optional[str],
+    user_id: str | None,
     event_type: str,
     request: Request,
-    metadata: Optional[dict] = None
+    metadata: dict | None = None
 ) -> None:
     """Log an authentication event to the audit log."""
     try:
@@ -333,8 +327,8 @@ async def update_me(
 async def list_users(
     limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0),
-    role: Optional[str] = Query(None, pattern="^(user|admin)$"),
-    user: CurrentUser = Depends(require_admin),
+    role: str | None = Query(None, pattern="^(user|admin)$"),
+    _user: CurrentUser = Depends(require_admin),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """
@@ -380,7 +374,7 @@ async def list_users(
 @admin_router.get("/users/{user_id}")
 async def get_user(
     user_id: str,
-    admin: CurrentUser = Depends(require_admin),
+    _admin: CurrentUser = Depends(require_admin),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """
@@ -513,9 +507,9 @@ async def update_user_status(
 async def get_audit_log(
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
-    user_id: Optional[str] = None,
-    event_type: Optional[str] = None,
-    admin: CurrentUser = Depends(require_admin),
+    user_id: str | None = None,
+    event_type: str | None = None,
+    _admin: CurrentUser = Depends(require_admin),
     pool: asyncpg.Pool = Depends(get_pool)
 ):
     """

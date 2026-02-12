@@ -17,11 +17,12 @@ rows locked — they stay in 'processing' and get recovered by recover_stuck_job
 """
 
 import asyncio
-import aiohttp
-import os
 import logging
-from dotenv import load_dotenv
+import os
+
+import aiohttp
 from db_pool import get_connection, release_connection
+from dotenv import load_dotenv
 from get_calls import store_audio
 
 load_dotenv()

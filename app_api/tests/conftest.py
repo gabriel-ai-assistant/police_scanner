@@ -8,16 +8,12 @@ Provides:
 - Database pool mock
 """
 
-import asyncio
-from typing import AsyncGenerator, Optional
+from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-
 from models.auth import CurrentUser
-
 
 # ---------------------------------------------------------------------------
 # Mock user objects
@@ -64,7 +60,7 @@ def _make_pool_mock():
 # App factory with dependency overrides
 # ---------------------------------------------------------------------------
 
-def _build_app(user: Optional[CurrentUser] = None):
+def _build_app(user: CurrentUser | None = None):
     """
     Import the FastAPI app and override auth + database dependencies.
 
@@ -79,12 +75,16 @@ def _build_app(user: Optional[CurrentUser] = None):
     with patch("auth.firebase.initialize_firebase", return_value=False):
         from main import app
 
-    from database import get_pool as real_get_pool
     from auth.dependencies import (
-        require_auth as real_require_auth,
-        require_admin as real_require_admin,
         get_current_user_optional as real_get_current_user_optional,
     )
+    from auth.dependencies import (
+        require_admin as real_require_admin,
+    )
+    from auth.dependencies import (
+        require_auth as real_require_auth,
+    )
+    from database import get_pool as real_get_pool
 
     pool_mock, conn_mock = _make_pool_mock()
 

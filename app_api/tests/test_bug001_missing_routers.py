@@ -5,9 +5,8 @@ Tests that the stub router modules exist, are importable, and expose
 a valid FastAPI APIRouter instance.
 """
 
-import sys
 import os
-import pytest
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 

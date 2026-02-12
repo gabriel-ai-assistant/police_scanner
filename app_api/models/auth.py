@@ -1,13 +1,13 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List
 from datetime import datetime
+
+from pydantic import BaseModel, Field
 
 
 class UserBase(BaseModel):
     """Base user model with common fields."""
     email: str
-    display_name: Optional[str] = None
-    avatar_url: Optional[str] = None
+    display_name: str | None = None
+    avatar_url: str | None = None
     role: str = "user"
 
 
@@ -25,17 +25,17 @@ class User(UserBase):
     is_active: bool
     created_at: datetime
     updated_at: datetime
-    last_login_at: Optional[datetime] = None
+    last_login_at: datetime | None = None
 
     # Transformed fields for frontend (camelCase)
-    firebaseUid: Optional[str] = None
-    emailVerified: Optional[bool] = None
-    displayName: Optional[str] = None
-    avatarUrl: Optional[str] = None
-    isActive: Optional[bool] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
-    lastLoginAt: Optional[str] = None
+    firebaseUid: str | None = None
+    emailVerified: bool | None = None
+    displayName: str | None = None
+    avatarUrl: str | None = None
+    isActive: bool | None = None
+    createdAt: str | None = None
+    updatedAt: str | None = None
+    lastLoginAt: str | None = None
 
     class Config:
         from_attributes = True
@@ -44,13 +44,13 @@ class User(UserBase):
 class UserPublic(BaseModel):
     """Public user info (safe to expose to other users)."""
     id: str
-    display_name: Optional[str] = None
-    avatar_url: Optional[str] = None
+    display_name: str | None = None
+    avatar_url: str | None = None
     role: str
 
     # Transformed fields for frontend
-    displayName: Optional[str] = None
-    avatarUrl: Optional[str] = None
+    displayName: str | None = None
+    avatarUrl: str | None = None
 
     class Config:
         from_attributes = True
@@ -58,7 +58,7 @@ class UserPublic(BaseModel):
 
 class UserUpdate(BaseModel):
     """Model for updating user profile (self-service)."""
-    display_name: Optional[str] = Field(None, max_length=100)
+    display_name: str | None = Field(None, max_length=100)
 
 
 class UserRoleUpdate(BaseModel):
@@ -80,19 +80,19 @@ class SessionResponse(BaseModel):
 class AuthAuditLog(BaseModel):
     """Auth audit log entry."""
     id: int
-    user_id: Optional[str] = None
+    user_id: str | None = None
     event_type: str
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
-    metadata: Optional[dict] = None
+    ip_address: str | None = None
+    user_agent: str | None = None
+    metadata: dict | None = None
     created_at: datetime
 
     # Transformed fields for frontend
-    userId: Optional[str] = None
-    eventType: Optional[str] = None
-    ipAddress: Optional[str] = None
-    userAgent: Optional[str] = None
-    createdAt: Optional[str] = None
+    userId: str | None = None
+    eventType: str | None = None
+    ipAddress: str | None = None
+    userAgent: str | None = None
+    createdAt: str | None = None
 
     class Config:
         from_attributes = True
@@ -100,7 +100,7 @@ class AuthAuditLog(BaseModel):
 
 class UserListResponse(BaseModel):
     """Response for listing users (admin)."""
-    users: List[User]
+    users: list[User]
     total: int
     limit: int
     offset: int

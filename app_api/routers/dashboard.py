@@ -5,31 +5,25 @@ Provides user-scoped dashboard data based on subscriptions.
 """
 
 import logging
-from typing import Optional
+import time as _time
 
+import asyncpg
 import boto3
+from auth.dependencies import require_auth
 from botocore.config import Config
 from botocore.exceptions import ClientError
-from fastapi import APIRouter, Depends, Query
-import asyncpg
-
 from config import settings
 from database import get_pool
+from fastapi import APIRouter, Depends, Query
 from models.auth import CurrentUser
 from models.dashboard import (
     DashboardStats,
-    MyFeed,
-    MyFeedsResponse,
-    RecentCall,
-    RecentCallsResponse,
-    RecentTranscript,
-    RecentTranscriptsResponse,
-    KeywordGroupSummary,
     KeywordSummaryResponse,
-    RecentActivity,
+    MyFeedsResponse,
     RecentActivityResponse,
+    RecentCallsResponse,
+    RecentTranscriptsResponse,
 )
-from auth.dependencies import require_auth
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +32,6 @@ router = APIRouter()
 # ============================================================
 # In-memory TTL cache for dashboard stats
 # ============================================================
-import time as _time
-
 _stats_cache: dict = {}  # key -> {"data": ..., "expires": float}
 _STATS_TTL = 60  # seconds
 _CACHE_MAX_SIZE = 1000
@@ -92,7 +84,7 @@ _presigned_cache: dict = {}  # s3_key -> {"url": str, "expires": float}
 _PRESIGNED_TTL = 1800  # 30 minutes
 
 
-def build_audio_url(s3_key: Optional[str]) -> Optional[str]:
+def build_audio_url(s3_key: str | None) -> str | None:
     """Generate presigned URL for audio file in MinIO (cached)."""
     if not s3_key:
         return None
@@ -199,7 +191,7 @@ def transform_keyword_group_summary(row: dict) -> dict:
     }
 
 
-def transform_activity_response(row: dict, audio_url: Optional[str]) -> dict:
+def transform_activity_response(row: dict, audio_url: str | None) -> dict:
     """Transform activity row to API response with camelCase fields."""
     result = {
         "id": row.get('call_uid', ''),

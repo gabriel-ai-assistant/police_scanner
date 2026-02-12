@@ -5,18 +5,26 @@ Pulls new calls, converts each MP3 → optimized 16-kHz WAV,
 uploads to MinIO, and logs ingestion.
 """
 
-import asyncio, aiohttp, asyncpg, os, json, time, boto3, logging, subprocess, sys
+import asyncio
+import json
+import logging
+import os
+import subprocess
+import sys
+import time
+
+import aiohttp
+import boto3
+import librosa
+import numpy as np
 from botocore.client import Config
-from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
-import librosa, numpy as np
 
 # Import JWT token cache for efficient token reuse
 sys.path.insert(0, '/app/shared_bcfy')
-from token_cache import get_jwt_token
-
 # Import database connection pool
 from db_pool import get_connection, release_connection
+from token_cache import get_jwt_token
 
 # =========================================================
 # Logging
@@ -214,7 +222,7 @@ def analyze_audio(path):
     analysis = analyze_audio_enhanced(path)
     return analysis['rms'], analysis['spectral_centroid'], analysis['noise_floor']
 
-def build_tier1_filters(analysis):
+def build_tier1_filters(_analysis):
     """Build filter chain for clean audio (quality_score > 70).
 
     Light processing to preserve original quality.
@@ -228,7 +236,7 @@ def build_tier1_filters(analysis):
     ]
     return filters
 
-def build_tier2_filters(analysis):
+def build_tier2_filters(_analysis):
     """Build filter chain for moderate quality (40 < quality_score <= 70).
 
     Standard police radio processing with noise reduction and speech enhancement.
@@ -246,7 +254,7 @@ def build_tier2_filters(analysis):
     ]
     return filters
 
-def build_tier3_filters(analysis):
+def build_tier3_filters(_analysis):
     """Build filter chain for poor quality (quality_score <= 40).
 
     Aggressive multi-stage processing for severely degraded audio.

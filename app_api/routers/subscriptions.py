@@ -6,24 +6,21 @@ Handles user subscriptions to playlists and linking of keyword groups.
 
 import logging
 import uuid as uuid_lib
-from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
 import asyncpg
-
+from auth.dependencies import require_auth
 from database import get_pool
+from fastapi import APIRouter, Depends, HTTPException, status
 from models.auth import CurrentUser
 from models.subscriptions import (
+    LinkedKeywordGroup,
+    LinkKeywordGroupRequest,
     Subscription,
     SubscriptionCreate,
-    SubscriptionUpdate,
-    SubscriptionSummary,
     SubscriptionListResponse,
     SubscriptionStatus,
-    LinkKeywordGroupRequest,
-    LinkedKeywordGroup,
+    SubscriptionUpdate,
 )
-from auth.dependencies import require_auth
 
 logger = logging.getLogger(__name__)
 
@@ -334,7 +331,7 @@ async def update_subscription(
             RETURNING *
         """
 
-        row = await conn.fetchrow(query, *params)
+        await conn.fetchrow(query, *params)
 
         # Get playlist info and counts
         full_row = await conn.fetchrow(
@@ -398,7 +395,7 @@ async def delete_subscription(
 # Keyword Group Links
 # ============================================================
 
-@router.get("/{subscription_id}/keyword-groups", response_model=List[LinkedKeywordGroup])
+@router.get("/{subscription_id}/keyword-groups", response_model=list[LinkedKeywordGroup])
 async def list_linked_keyword_groups(
     subscription_id: str,
     user: CurrentUser = Depends(require_auth),

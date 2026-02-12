@@ -1,8 +1,7 @@
-from fastapi import APIRouter, Depends
-from datetime import datetime, timezone
-import asyncpg
+from datetime import UTC, datetime
 
 from database import get_pool
+from fastapi import APIRouter
 from models.system import HealthStatus
 
 router = APIRouter()
@@ -30,7 +29,7 @@ async def health_check():
         database=db_status,
         redis=redis_status,
         version="1.0.0",
-        timestamp=datetime.now(timezone.utc)
+        timestamp=datetime.now(UTC)
     )
 
 

@@ -1,14 +1,15 @@
-import os
-import time
-import json
-import hmac
 import base64
 import hashlib
+import hmac
+import json
 import logging
-import requests
-import psycopg2.extras
-from db import get_conn
+import os
+import time
 
+import psycopg2.extras
+import requests
+
+from db import get_conn
 
 # ============================================================
 # Configure logging – always show on console

@@ -6,19 +6,17 @@ This module handles Firebase token verification and session cookie management.
 
 import logging
 import os
-from typing import Optional
 from datetime import timedelta
 
 import firebase_admin
-from firebase_admin import credentials, auth
-from firebase_admin.exceptions import FirebaseError
-
 from config import settings
+from firebase_admin import auth, credentials
+from firebase_admin.exceptions import FirebaseError
 
 logger = logging.getLogger(__name__)
 
 # Firebase app instance (singleton)
-_firebase_app: Optional[firebase_admin.App] = None
+_firebase_app: firebase_admin.App | None = None
 
 
 def initialize_firebase() -> bool:

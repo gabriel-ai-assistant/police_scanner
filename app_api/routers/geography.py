@@ -1,18 +1,21 @@
-from fastapi import APIRouter, Query, Depends, HTTPException
-from typing import List, Optional
-import asyncpg
 
+import asyncpg
 from database import get_pool
+from fastapi import APIRouter, Depends, HTTPException, Query
 from models.geography import (
-    Country, State, County, CountrySyncUpdate,
-    StateSyncUpdate, CountySyncUpdate
+    Country,
+    CountrySyncUpdate,
+    County,
+    CountySyncUpdate,
+    State,
+    StateSyncUpdate,
 )
 
 router = APIRouter()
 
 
 # Countries endpoints
-@router.get("/countries", response_model=List[Country])
+@router.get("/countries", response_model=list[Country])
 async def list_countries(
     sync_only: bool = Query(False),
     limit: int = Query(100, ge=1, le=1000),
@@ -75,9 +78,9 @@ async def update_country(
 
 
 # States endpoints
-@router.get("/states", response_model=List[State])
+@router.get("/states", response_model=list[State])
 async def list_states(
-    coid: Optional[int] = Query(None),
+    coid: int | None = Query(None),
     sync_only: bool = Query(False),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
@@ -144,9 +147,9 @@ async def update_state(
 
 
 # Counties endpoints
-@router.get("/counties", response_model=List[County])
+@router.get("/counties", response_model=list[County])
 async def list_counties(
-    stid: Optional[int] = Query(None),
+    stid: int | None = Query(None),
     sync_only: bool = Query(False),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),

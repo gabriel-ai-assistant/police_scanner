@@ -1,25 +1,25 @@
-from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel
 
 
 class CallMetadata(BaseModel):
     """Call metadata response model."""
     call_uid: str
-    feed_id: Optional[int] = None
-    tg_id: Optional[int] = None
-    tag_id: Optional[int] = None
-    url: Optional[str] = None
-    started_at: Optional[datetime] = None
-    ended_at: Optional[datetime] = None
-    duration_ms: Optional[int] = None
-    size_bytes: Optional[int] = None
-    fetched_at: Optional[datetime] = None
+    feed_id: int | None = None
+    tg_id: int | None = None
+    tag_id: int | None = None
+    url: str | None = None
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
+    duration_ms: int | None = None
+    size_bytes: int | None = None
+    fetched_at: datetime | None = None
     processed: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
     # Transformed fields (added by API transformer for frontend compatibility)
-    timestamp: Optional[str] = None
+    timestamp: str | None = None
 
     class Config:
         from_attributes = True
@@ -27,9 +27,9 @@ class CallMetadata(BaseModel):
 
 class CallDetail(CallMetadata):
     """Extended call detail with transcript info."""
-    transcript_text: Optional[str] = None
-    transcript_confidence: Optional[float] = None
-    audio_url: Optional[str] = None
+    transcript_text: str | None = None
+    transcript_confidence: float | None = None
+    audio_url: str | None = None
 
 
 class HourlyStats(BaseModel):
@@ -42,4 +42,4 @@ class FeedStats(BaseModel):
     """Statistics grouped by feed."""
     feed_id: int
     count: int
-    avg_duration_ms: Optional[float] = None
+    avg_duration_ms: float | None = None

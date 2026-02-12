@@ -4,10 +4,9 @@ BUG-020: Mock/hardcoded data returned in keyword_hits endpoint.
 Tests that get_keyword_hits doesn't return hardcoded fake data.
 """
 
+import inspect
 import os
 import sys
-import inspect
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 

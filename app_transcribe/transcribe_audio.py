@@ -13,10 +13,16 @@
 # is needed for offline/GPU transcription in the future.
 # =============================================================================
 
-import os, psycopg2, boto3, tempfile, re, logging
-from faster_whisper import WhisperModel
-from datetime import datetime, timezone
+import logging
+import os
+import re
+import tempfile
+from datetime import UTC, datetime
+
+import boto3
+import psycopg2
 from botocore.exceptions import ClientError
+from faster_whisper import WhisperModel
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -102,9 +108,9 @@ def mark_processed(cur, call_id, success, error=None):
         UPDATE bcfy_calls_raw
         SET processed=%s, last_attempt=%s, error=%s
         WHERE id=%s;
-    """, (success, datetime.now(timezone.utc), error, call_id))
+    """, (success, datetime.now(UTC), error, call_id))
 
-def transcribe_file(call_id, s3_uri):
+def transcribe_file(_call_id, s3_uri):
     bucket, key = s3_uri.replace("s3://", "").split("/", 1)
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         try:

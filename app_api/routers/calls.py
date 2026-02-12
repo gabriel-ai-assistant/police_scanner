@@ -1,15 +1,14 @@
-from fastapi import APIRouter, Query, Depends, HTTPException
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timedelta
-import asyncpg
+from typing import Any
 
+import asyncpg
 from database import get_pool
-from models.calls import CallMetadata, HourlyStats, FeedStats
+from fastapi import APIRouter, Depends, HTTPException, Query
+from models.calls import CallMetadata, FeedStats, HourlyStats
 
 router = APIRouter()
 
 
-def transform_call_response(row: Dict[str, Any]) -> Dict[str, Any]:
+def transform_call_response(row: dict[str, Any]) -> dict[str, Any]:
     """
     Transform call database row to frontend-expected format.
 
@@ -26,10 +25,10 @@ def transform_call_response(row: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-@router.get("", response_model=List[CallMetadata])
+@router.get("", response_model=list[CallMetadata])
 async def list_calls(
-    feed_id: Optional[int] = Query(None),
-    tg_id: Optional[int] = Query(None),
+    feed_id: int | None = Query(None),
+    tg_id: int | None = Query(None),
     limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     pool: asyncpg.Pool = Depends(get_pool)
@@ -76,7 +75,7 @@ async def get_call(
     return transform_call_response(dict(row))
 
 
-@router.get("/stats/hourly", response_model=List[HourlyStats])
+@router.get("/stats/hourly", response_model=list[HourlyStats])
 async def hourly_call_stats(
     pool: asyncpg.Pool = Depends(get_pool)
 ):
@@ -97,7 +96,7 @@ async def hourly_call_stats(
     return [{"hour": row["hour"], "count": row["count"]} for row in rows]
 
 
-@router.get("/stats/by-feed", response_model=List[FeedStats])
+@router.get("/stats/by-feed", response_model=list[FeedStats])
 async def feed_stats(
     pool: asyncpg.Pool = Depends(get_pool)
 ):

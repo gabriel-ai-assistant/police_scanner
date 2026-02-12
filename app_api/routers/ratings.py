@@ -5,19 +5,17 @@ Provides CRUD operations for transcript ratings (thumbs up/down).
 """
 
 import logging
-from typing import Union
 
-from fastapi import APIRouter, Depends, HTTPException, status
 import asyncpg
-
+from auth.dependencies import require_auth
 from database import get_pool
+from fastapi import APIRouter, Depends, HTTPException, status
 from models.auth import CurrentUser
 from models.dashboard import (
     TranscriptRating,
-    TranscriptRatingRequest,
     TranscriptRatingDeleteResponse,
+    TranscriptRatingRequest,
 )
-from auth.dependencies import require_auth
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +69,7 @@ async def get_rating(
     return transform_rating_response(dict(row))
 
 
-@router.put("/{transcript_id}", response_model=Union[TranscriptRating, TranscriptRatingDeleteResponse])
+@router.put("/{transcript_id}", response_model=TranscriptRating | TranscriptRatingDeleteResponse)
 async def upsert_rating(
     transcript_id: int,
     body: TranscriptRatingRequest,

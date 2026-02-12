@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-import os
-import sys
-import yaml
-import subprocess
 import logging
+import os
+import subprocess
+import sys
+
 from env_config import load_config as _load_config
 
 # Determine base directory and config path

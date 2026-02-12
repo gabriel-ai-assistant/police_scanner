@@ -6,23 +6,23 @@ Consumes tasks from Redis, transcribes WAV files using OpenAI Whisper API,
 stores results in PostgreSQL, and indexes in MeiliSearch.
 """
 
-import os
+import contextlib
 import json
-import tempfile
 import logging
+import os
 import re
-import time
+import tempfile
 import threading
-from datetime import datetime, timezone
-from typing import Optional, Dict, Any
+import time
+from datetime import UTC, datetime
+from typing import Any
 
-import psycopg2
-from psycopg2.extras import RealDictCursor
 import boto3
-from openai import OpenAI
 import meilisearch
-from celery import Celery
+import psycopg2
 from botocore.exceptions import ClientError
+from celery import Celery
+from openai import OpenAI
 
 # =============================================================================
 # Logging Configuration
@@ -105,11 +105,11 @@ MEILI_KEY = os.getenv("MEILI_MASTER_KEY")
 _meili_client = None
 _meili_client_initialized = False
 _meili_lock = threading.Lock()
-_meili_last_failure: Optional[float] = None  # monotonic timestamp of last failed attempt
+_meili_last_failure: float | None = None  # monotonic timestamp of last failed attempt
 _MEILI_FAILURE_COOLDOWN = 60  # seconds to wait before retrying after failure
 
 
-def get_meili_client() -> Optional[meilisearch.Client]:
+def get_meili_client() -> meilisearch.Client | None:
     """Lazy singleton MeiliSearch client with retry logic and failure cooldown.
 
     Thread-safe via _meili_lock. Attempts to connect with 3 retries using
@@ -318,7 +318,7 @@ def index_to_meilisearch(transcript_id: int, call_uid: str, text: str, language:
             "call_uid": call_uid,
             "text": text,
             "language": language,
-            "indexed_at": datetime.now(timezone.utc).isoformat()
+            "indexed_at": datetime.now(UTC).isoformat()
         }])
         log.info(f"Indexed transcript {transcript_id} in MeiliSearch")
     except Exception as e:
@@ -344,7 +344,7 @@ def log_to_system_logs(conn, event_type: str, message: str, metadata: dict = Non
         log.warning(f"Failed to log to system_logs: {e}")
 
 
-def transcribe_with_openai(audio_path: str) -> Dict[str, Any]:
+def transcribe_with_openai(audio_path: str) -> dict[str, Any]:
     """Call OpenAI Whisper API to transcribe audio.
 
     Returns dict with: text, segments, language, duration
@@ -400,7 +400,7 @@ def transcribe_with_openai(audio_path: str) -> Dict[str, Any]:
     retry_backoff_max=300,
     acks_late=True
 )
-def transcribe(self, call_uid: str, s3_key: str) -> Dict[str, Any]:
+def transcribe(self, call_uid: str, s3_key: str) -> dict[str, Any]:
     """
     Transcribe a single audio file using OpenAI Whisper API.
 
@@ -523,16 +523,12 @@ def transcribe(self, call_uid: str, s3_key: str) -> Dict[str, Any]:
 
     finally:
         if tmp_path and os.path.exists(tmp_path):
-            try:
+            with contextlib.suppress(Exception):
                 os.remove(tmp_path)
-            except Exception:
-                pass
 
         if conn:
-            try:
+            with contextlib.suppress(Exception):
                 conn.close()
-            except Exception:
-                pass
 
 
 # =============================================================================
@@ -540,7 +536,7 @@ def transcribe(self, call_uid: str, s3_key: str) -> Dict[str, Any]:
 # =============================================================================
 
 @app.task(name="transcription.health_check")
-def health_check() -> Dict[str, Any]:
+def health_check() -> dict[str, Any]:
     """Health check task for monitoring."""
     return {
         "status": "healthy",

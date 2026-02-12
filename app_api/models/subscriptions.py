@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List
 from datetime import datetime
+
+from pydantic import BaseModel, Field
 
 
 class SubscriptionCreate(BaseModel):
@@ -10,7 +10,7 @@ class SubscriptionCreate(BaseModel):
 
 class SubscriptionUpdate(BaseModel):
     """Request body for updating a subscription."""
-    notifications_enabled: Optional[bool] = None
+    notifications_enabled: bool | None = None
 
 
 class Subscription(BaseModel):
@@ -23,21 +23,21 @@ class Subscription(BaseModel):
     updated_at: datetime
 
     # Joined data from playlists table
-    playlist_name: Optional[str] = None
-    playlist_descr: Optional[str] = None
+    playlist_name: str | None = None
+    playlist_descr: str | None = None
 
     # Computed counts
     keyword_group_count: int = 0
 
     # Transformed fields for frontend (camelCase)
-    userId: Optional[str] = None
-    playlistUuid: Optional[str] = None
-    notificationsEnabled: Optional[bool] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
-    playlistName: Optional[str] = None
-    playlistDescr: Optional[str] = None
-    keywordGroupCount: Optional[int] = None
+    userId: str | None = None
+    playlistUuid: str | None = None
+    notificationsEnabled: bool | None = None
+    createdAt: str | None = None
+    updatedAt: str | None = None
+    playlistName: str | None = None
+    playlistDescr: str | None = None
+    keywordGroupCount: int | None = None
 
     class Config:
         from_attributes = True
@@ -47,15 +47,15 @@ class SubscriptionSummary(BaseModel):
     """Minimal subscription info for lists."""
     id: str
     playlist_uuid: str
-    playlist_name: Optional[str] = None
+    playlist_name: str | None = None
     notifications_enabled: bool
     keyword_group_count: int = 0
 
     # Transformed fields for frontend
-    playlistUuid: Optional[str] = None
-    playlistName: Optional[str] = None
-    notificationsEnabled: Optional[bool] = None
-    keywordGroupCount: Optional[int] = None
+    playlistUuid: str | None = None
+    playlistName: str | None = None
+    notificationsEnabled: bool | None = None
+    keywordGroupCount: int | None = None
 
     class Config:
         from_attributes = True
@@ -63,7 +63,7 @@ class SubscriptionSummary(BaseModel):
 
 class SubscriptionListResponse(BaseModel):
     """Response for listing user's subscriptions."""
-    subscriptions: List[SubscriptionSummary]
+    subscriptions: list[SubscriptionSummary]
     total: int
 
 
@@ -71,12 +71,12 @@ class SubscriptionStatus(BaseModel):
     """Quick status check for a playlist (is user subscribed?)."""
     playlist_uuid: str
     is_subscribed: bool
-    subscription_id: Optional[str] = None
+    subscription_id: str | None = None
 
     # Transformed fields for frontend
-    playlistUuid: Optional[str] = None
-    isSubscribed: Optional[bool] = None
-    subscriptionId: Optional[str] = None
+    playlistUuid: str | None = None
+    isSubscribed: bool | None = None
+    subscriptionId: str | None = None
 
     class Config:
         from_attributes = True
@@ -96,10 +96,10 @@ class LinkedKeywordGroup(BaseModel):
     created_at: datetime
 
     # Transformed fields for frontend
-    keywordGroupId: Optional[str] = None
-    keywordGroupName: Optional[str] = None
-    keywordCount: Optional[int] = None
-    createdAt: Optional[str] = None
+    keywordGroupId: str | None = None
+    keywordGroupName: str | None = None
+    keywordCount: int | None = None
+    createdAt: str | None = None
 
     class Config:
         from_attributes = True

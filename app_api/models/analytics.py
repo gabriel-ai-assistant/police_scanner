@@ -1,6 +1,5 @@
+
 from pydantic import BaseModel
-from typing import List, Dict, Optional
-from datetime import datetime
 
 
 class KeywordHit(BaseModel):
@@ -18,7 +17,7 @@ class HourlyPoint(BaseModel):
 class TalkgroupHit(BaseModel):
     """Talkgroup activity model."""
     tg_id: int
-    display: Optional[str] = None
+    display: str | None = None
     count: int
 
 
@@ -30,14 +29,14 @@ class DashboardMetrics(BaseModel):
     avg_transcription_confidence: float
     processing_queue_size: int
     api_calls_today: int
-    recent_calls: List[dict]
-    top_talkgroups: List[TalkgroupHit]
+    recent_calls: list[dict]
+    top_talkgroups: list[TalkgroupHit]
 
     # Transformed fields (added by API transformer for frontend compatibility)
-    feedCount: Optional[int] = None
-    activeFeeds: Optional[int] = None
-    recentCalls: Optional[int] = None
-    transcriptsToday: Optional[str] = None
+    feedCount: int | None = None
+    activeFeeds: int | None = None
+    recentCalls: int | None = None
+    transcriptsToday: str | None = None
 
 
 class QualityDistribution(BaseModel):

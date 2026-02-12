@@ -4,10 +4,9 @@ BUG-013: update_user_status uses query param instead of request body.
 Tests that the endpoint uses a Pydantic model for the request body.
 """
 
+import inspect
 import os
 import sys
-import inspect
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -45,8 +44,8 @@ class TestStatusEndpointBody:
 
     def test_update_user_status_body_type_annotation(self):
         """body parameter should be typed as UserStatusUpdate."""
-        from routers.auth import update_user_status
         from models.auth import UserStatusUpdate
+        from routers.auth import update_user_status
 
         sig = inspect.signature(update_user_status)
         body_param = sig.parameters.get("body")

@@ -5,16 +5,17 @@ Helps safely apply and validate database migrations
 """
 
 import asyncio
-import asyncpg
+import json
 import sys
 from datetime import datetime
-from typing import Dict, List, Tuple, Optional
-import json
+
+import asyncpg
+
 
 class DatabaseValidator:
     def __init__(self, database_url: str):
         self.database_url = database_url
-        self.conn: Optional[asyncpg.Connection] = None
+        self.conn: asyncpg.Connection | None = None
 
     async def connect(self):
         """Connect to database"""
@@ -80,7 +81,7 @@ class DatabaseValidator:
             """)
             print(f"  Disk: {total['used_gb']:.1f}GB used of ~{total['total_gb']}GB")
             return True
-        except:
+        except Exception:
             return True  # Can't check on RDS, assume OK
 
     async def _check_connections(self) -> bool:
@@ -94,10 +95,10 @@ class DatabaseValidator:
 
     async def _check_backup_status(self) -> bool:
         """Recommend backup"""
-        print(f"  ⚠️  BACKUP RECOMMENDED before migration")
+        print("  ⚠️  BACKUP RECOMMENDED before migration")
         return True
 
-    async def validate_phase1(self) -> Dict[str, bool]:
+    async def validate_phase1(self) -> dict[str, bool]:
         """Validate Phase 1 changes"""
         print("\n" + "="*60)
         print("VALIDATING PHASE 1: Indexes & Monitoring")
@@ -158,7 +159,7 @@ class DatabaseValidator:
         print(f"  Found {trigger_count} triggers")
         return trigger_count >= 2
 
-    async def validate_phase2(self) -> Dict[str, bool]:
+    async def validate_phase2(self) -> dict[str, bool]:
         """Validate Phase 2 partitioning"""
         print("\n" + "="*60)
         print("VALIDATING PHASE 2: Table Partitioning")
@@ -192,7 +193,7 @@ class DatabaseValidator:
                 print(f"  {row['relname']}: {row['partition_count']} partitions")
             return True
         else:
-            print(f"  No partitioned tables found (expected if migration not applied)")
+            print("  No partitioned tables found (expected if migration not applied)")
             return False
 
     async def _check_data_migration(self) -> bool:
@@ -244,13 +245,13 @@ class DatabaseValidator:
                 print(f"  Partition pruning: Active ({len(plans['Plans'])} partitions scanned)")
                 return True
             else:
-                print(f"  Partition pruning: Unable to verify (single partition)")
+                print("  Partition pruning: Unable to verify (single partition)")
                 return True
         except Exception as e:
             print(f"  Partition pruning check failed: {e}")
             return False
 
-    async def validate_phase3(self) -> Dict[str, bool]:
+    async def validate_phase3(self) -> dict[str, bool]:
         """Validate Phase 3 schema improvements"""
         print("\n" + "="*60)
         print("VALIDATING PHASE 3: Schema Improvements")
@@ -304,7 +305,7 @@ class DatabaseValidator:
         print(f"  Found views: {', '.join(view_names)}")
         return len(view_names) >= 2
 
-    async def performance_test(self) -> Dict[str, float]:
+    async def performance_test(self) -> dict[str, float]:
         """Test query performance"""
         print("\n" + "="*60)
         print("PERFORMANCE TESTING")

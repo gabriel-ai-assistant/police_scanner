@@ -6,20 +6,17 @@ Provides geocoding endpoints and batch processing for location extraction.
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from typing import Optional, List
-from datetime import datetime, timedelta, timezone
-from uuid import UUID
 
 import asyncpg
-from fastapi import FastAPI, Query, HTTPException, BackgroundTasks
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 
 from app.config import settings
+from app.extractor import extract_locations, extract_locations_with_context
 from app.models import (
-    GeocodeRequest, GeocodeResult, Location, LocationWithContext,
-    LocationListResponse, HeatmapResponse, HeatmapPoint
+    GeocodeRequest,
+    GeocodeResult,
 )
 from app.nominatim import NominatimClient
-from app.extractor import extract_locations, extract_locations_with_context
 
 # Configure logging
 logging.basicConfig(
@@ -29,7 +26,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Database pool
-_pool: Optional[asyncpg.Pool] = None
+_pool: asyncpg.Pool | None = None
 _pool_lock = asyncio.Lock()
 
 
@@ -64,7 +61,7 @@ async def close_pool():
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """Startup and shutdown events."""
     logger.info("Starting Geocoder Service...")
     await get_pool()
@@ -95,8 +92,8 @@ async def health_check():
 @app.get("/geocode")
 async def geocode_address(
     q: str = Query(..., min_length=3, description="Location query string"),
-    city: Optional[str] = Query(None, description="City to bias results"),
-    state: Optional[str] = Query(None, description="State to bias results")
+    city: str | None = Query(None, description="City to bias results"),
+    state: str | None = Query(None, description="State to bias results")
 ) -> GeocodeResult:
     """
     Geocode a single address or location string.

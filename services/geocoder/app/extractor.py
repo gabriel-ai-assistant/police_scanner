@@ -4,9 +4,8 @@ Location Text Extraction from Transcripts.
 Extracts addresses, streets, intersections, businesses, and landmarks
 from police scanner transcript text.
 """
-import re
 import logging
-from typing import List, Optional, Tuple
+import re
 
 from app.models import ExtractedLocation
 
@@ -86,7 +85,7 @@ class LocationExtractor:
             for pattern, loc_type, confidence in self.PATTERNS
         ]
 
-    def extract(self, text: str) -> List[ExtractedLocation]:
+    def extract(self, text: str) -> list[ExtractedLocation]:
         """
         Extract location mentions from transcript text.
 
@@ -146,7 +145,7 @@ class LocationExtractor:
         words = text.split()
         result = []
 
-        for i, word in enumerate(words):
+        for _i, word in enumerate(words):
             lower = word.lower()
             # Keep abbreviations uppercase
             if lower in ('i', 'us', 'sh', 'fm', 'cr', 'hwy', 'ne', 'nw', 'se', 'sw', 'n', 's', 'e', 'w'):
@@ -160,7 +159,7 @@ class LocationExtractor:
 
         return ' '.join(result)
 
-    def _adjust_confidence(self, text: str, loc_type: str, base_confidence: float) -> float:
+    def _adjust_confidence(self, text: str, _loc_type: str, base_confidence: float) -> float:
         """Adjust confidence based on text characteristics."""
         confidence = base_confidence
 
@@ -182,7 +181,7 @@ class LocationExtractor:
         # Ensure confidence stays in valid range
         return max(0.1, min(1.0, confidence))
 
-    def extract_with_context(self, text: str, window_size: int = 50) -> List[Tuple[ExtractedLocation, str]]:
+    def extract_with_context(self, text: str, window_size: int = 50) -> list[tuple[ExtractedLocation, str]]:
         """
         Extract locations with surrounding context.
 
@@ -216,11 +215,11 @@ class LocationExtractor:
 extractor = LocationExtractor()
 
 
-def extract_locations(text: str) -> List[ExtractedLocation]:
+def extract_locations(text: str) -> list[ExtractedLocation]:
     """Convenience function to extract locations from text."""
     return extractor.extract(text)
 
 
-def extract_locations_with_context(text: str) -> List[Tuple[ExtractedLocation, str]]:
+def extract_locations_with_context(text: str) -> list[tuple[ExtractedLocation, str]]:
     """Convenience function to extract locations with context."""
     return extractor.extract_with_context(text)

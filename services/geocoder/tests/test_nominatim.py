@@ -1,15 +1,16 @@
 """Tests for Nominatim geocoding client."""
-import pytest
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-import sys
 import os
+import sys
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 # Add app to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.nominatim import NominatimClient, RateLimiter
 from app.models import GeocodeRequest
+from app.nominatim import NominatimClient, RateLimiter
 
 
 class TestRateLimiter:
@@ -120,7 +121,7 @@ class TestNominatimClient:
 
         result = await client.geocode(request)
 
-        assert result.cached == True
+        assert result.cached
         assert result.latitude == 33.2366
         assert result.longitude == -96.8009
 

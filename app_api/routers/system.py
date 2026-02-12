@@ -1,20 +1,17 @@
-from fastapi import APIRouter, Query, Depends
-from typing import List, Optional
-import asyncpg
 
+import asyncpg
 from database import get_pool
-from models.system import (
-    SystemLog, ProcessingStateSummary
-)
+from fastapi import APIRouter, Depends, Query
 from models.analytics import ApiMetricsSummary
+from models.system import ProcessingStateSummary, SystemLog
 
 router = APIRouter()
 
 
-@router.get("/logs", response_model=List[SystemLog])
+@router.get("/logs", response_model=list[SystemLog])
 async def get_system_logs(
-    component: Optional[str] = Query(None),
-    severity: Optional[str] = Query(None),
+    component: str | None = Query(None),
+    severity: str | None = Query(None),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     pool: asyncpg.Pool = Depends(get_pool)

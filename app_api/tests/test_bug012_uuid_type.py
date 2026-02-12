@@ -7,6 +7,7 @@ Tests that the CurrentUser model uses uuid.UUID for the id field.
 import os
 import sys
 import uuid
+
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -58,8 +59,9 @@ class TestUuidTypeHandling:
 
     def test_current_user_id_not_str_annotation(self):
         """CurrentUser.id field annotation must not be str."""
-        from models.auth import CurrentUser
         import typing
+
+        from models.auth import CurrentUser
 
         hints = typing.get_type_hints(CurrentUser)
         assert hints["id"] is not str, \

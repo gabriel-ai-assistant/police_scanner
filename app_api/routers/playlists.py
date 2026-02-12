@@ -1,16 +1,16 @@
-from fastapi import APIRouter, Query, Depends, HTTPException
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timezone
-import asyncpg
 import uuid as uuid_lib
+from datetime import UTC, datetime
+from typing import Any
 
+import asyncpg
 from database import get_pool
-from models.playlists import Playlist, PlaylistUpdate, PlaylistStats
+from fastapi import APIRouter, Depends, HTTPException, Query
+from models.playlists import Playlist, PlaylistStats, PlaylistUpdate
 
 router = APIRouter()
 
 
-def transform_playlist_response(row: Dict[str, Any]) -> Dict[str, Any]:
+def transform_playlist_response(row: dict[str, Any]) -> dict[str, Any]:
     """
     Transform playlist database row to frontend-expected format.
 
@@ -36,12 +36,12 @@ def transform_playlist_response(row: Dict[str, Any]) -> Dict[str, Any]:
         result['updatedAt'] = result['fetched_at'].isoformat() if hasattr(result['fetched_at'], 'isoformat') else str(result['fetched_at'])
     else:
         # Fallback to current timestamp if fetched_at is NULL
-        result['updatedAt'] = datetime.now(timezone.utc).isoformat()
+        result['updatedAt'] = datetime.now(UTC).isoformat()
 
     return result
 
 
-@router.get("", response_model=List[Playlist])
+@router.get("", response_model=list[Playlist])
 async def list_playlists(
     sync_only: bool = Query(False),
     limit: int = Query(100, ge=1, le=1000),
@@ -54,7 +54,7 @@ async def list_playlists(
     param_count = 1
 
     if sync_only:
-        query += f" AND sync = TRUE"
+        query += " AND sync = TRUE"
 
     query += f" ORDER BY listeners DESC NULLS LAST LIMIT ${param_count} OFFSET ${param_count + 1}"
     params.extend([limit, offset])

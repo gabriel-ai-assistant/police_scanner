@@ -1,7 +1,6 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List
 from datetime import datetime
 
+from pydantic import BaseModel, Field
 
 # Match type enum values
 MATCH_TYPES = ['exact', 'substring', 'fuzzy', 'regex', 'phrase']
@@ -10,22 +9,22 @@ MATCH_TYPES = ['exact', 'substring', 'fuzzy', 'regex', 'phrase']
 class KeywordGroupCreate(BaseModel):
     """Request body for creating a keyword group."""
     name: str = Field(..., min_length=1, max_length=100)
-    description: Optional[str] = None
+    description: str | None = None
 
 
 class KeywordGroupUpdate(BaseModel):
     """Request body for updating a keyword group."""
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
-    description: Optional[str] = None
-    is_active: Optional[bool] = None
+    name: str | None = Field(None, min_length=1, max_length=100)
+    description: str | None = None
+    is_active: bool | None = None
 
 
 class KeywordGroup(BaseModel):
     """Full keyword group model returned from database."""
     id: str
-    user_id: Optional[str] = None  # NULL for system templates
+    user_id: str | None = None  # NULL for system templates
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     is_template: bool = False
     is_active: bool = True
     created_at: datetime
@@ -36,13 +35,13 @@ class KeywordGroup(BaseModel):
     subscription_count: int = 0
 
     # Transformed fields for frontend (camelCase)
-    userId: Optional[str] = None
-    isTemplate: Optional[bool] = None
-    isActive: Optional[bool] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
-    keywordCount: Optional[int] = None
-    subscriptionCount: Optional[int] = None
+    userId: str | None = None
+    isTemplate: bool | None = None
+    isActive: bool | None = None
+    createdAt: str | None = None
+    updatedAt: str | None = None
+    keywordCount: int | None = None
+    subscriptionCount: int | None = None
 
     class Config:
         from_attributes = True
@@ -52,17 +51,17 @@ class KeywordGroupSummary(BaseModel):
     """Minimal keyword group info for lists."""
     id: str
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     is_template: bool = False
     is_active: bool = True
     keyword_count: int = 0
     subscription_count: int = 0
 
     # Transformed fields for frontend
-    isTemplate: Optional[bool] = None
-    isActive: Optional[bool] = None
-    keywordCount: Optional[int] = None
-    subscriptionCount: Optional[int] = None
+    isTemplate: bool | None = None
+    isActive: bool | None = None
+    keywordCount: int | None = None
+    subscriptionCount: int | None = None
 
     class Config:
         from_attributes = True
@@ -70,13 +69,13 @@ class KeywordGroupSummary(BaseModel):
 
 class KeywordGroupListResponse(BaseModel):
     """Response for listing keyword groups."""
-    groups: List[KeywordGroupSummary]
+    groups: list[KeywordGroupSummary]
     total: int
 
 
 class TemplateListResponse(BaseModel):
     """Response for listing template keyword groups."""
-    templates: List[KeywordGroupSummary]
+    templates: list[KeywordGroupSummary]
     total: int
 
 
@@ -90,9 +89,9 @@ class KeywordCreate(BaseModel):
 
 class KeywordUpdate(BaseModel):
     """Request body for updating a keyword."""
-    keyword: Optional[str] = Field(None, min_length=1)
-    match_type: Optional[str] = Field(None, pattern='^(exact|substring|fuzzy|regex|phrase)$')
-    is_active: Optional[bool] = None
+    keyword: str | None = Field(None, min_length=1)
+    match_type: str | None = Field(None, pattern='^(exact|substring|fuzzy|regex|phrase)$')
+    is_active: bool | None = None
 
 
 class Keyword(BaseModel):
@@ -105,10 +104,10 @@ class Keyword(BaseModel):
     created_at: datetime
 
     # Transformed fields for frontend (camelCase)
-    keywordGroupId: Optional[str] = None
-    matchType: Optional[str] = None
-    isActive: Optional[bool] = None
-    createdAt: Optional[str] = None
+    keywordGroupId: str | None = None
+    matchType: str | None = None
+    isActive: bool | None = None
+    createdAt: str | None = None
 
     class Config:
         from_attributes = True
@@ -116,7 +115,7 @@ class Keyword(BaseModel):
 
 class KeywordListResponse(BaseModel):
     """Response for listing keywords in a group."""
-    keywords: List[Keyword]
+    keywords: list[Keyword]
     total: int
 
 
@@ -136,7 +135,7 @@ class BulkImportResponse(BaseModel):
     """Response from bulk keyword import."""
     imported: int
     skipped: int
-    errors: List[str]
+    errors: list[str]
 
 
 # Clone template model
@@ -145,21 +144,21 @@ class CloneTemplateRequest(BaseModel):
     """Request body for cloning a template keyword group."""
     template_id: str = Field(..., description="UUID of the template to clone")
     name: str = Field(..., min_length=1, max_length=100, description="Name for the new group")
-    description: Optional[str] = None
+    description: str | None = None
 
 
 class LinkedSubscription(BaseModel):
     """Subscription linked to a keyword group."""
     subscription_id: str
     playlist_uuid: str
-    playlist_name: Optional[str] = None
+    playlist_name: str | None = None
     created_at: datetime
 
     # Transformed fields for frontend
-    subscriptionId: Optional[str] = None
-    playlistUuid: Optional[str] = None
-    playlistName: Optional[str] = None
-    createdAt: Optional[str] = None
+    subscriptionId: str | None = None
+    playlistUuid: str | None = None
+    playlistName: str | None = None
+    createdAt: str | None = None
 
     class Config:
         from_attributes = True
@@ -168,25 +167,25 @@ class LinkedSubscription(BaseModel):
 class KeywordGroupDetail(BaseModel):
     """Detailed keyword group with keywords and linked subscriptions."""
     id: str
-    user_id: Optional[str] = None
+    user_id: str | None = None
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     is_template: bool = False
     is_active: bool = True
     created_at: datetime
     updated_at: datetime
 
     # Related data
-    keywords: List[Keyword] = []
-    linked_subscriptions: List[LinkedSubscription] = []
+    keywords: list[Keyword] = []
+    linked_subscriptions: list[LinkedSubscription] = []
 
     # Transformed fields for frontend
-    userId: Optional[str] = None
-    isTemplate: Optional[bool] = None
-    isActive: Optional[bool] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
-    linkedSubscriptions: Optional[List[LinkedSubscription]] = None
+    userId: str | None = None
+    isTemplate: bool | None = None
+    isActive: bool | None = None
+    createdAt: str | None = None
+    updatedAt: str | None = None
+    linkedSubscriptions: list[LinkedSubscription] | None = None
 
     class Config:
         from_attributes = True

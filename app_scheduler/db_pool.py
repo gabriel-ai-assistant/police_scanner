@@ -5,8 +5,9 @@ Eliminates the overhead of creating new connections on every cycle.
 """
 
 import asyncio
-import asyncpg
 import os
+
+import asyncpg
 from dotenv import load_dotenv
 
 load_dotenv()

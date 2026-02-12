@@ -1,14 +1,27 @@
+import logging
+from contextlib import asynccontextmanager
+
+from auth.dependencies import require_auth
+from auth.firebase import initialize_firebase
+from config import settings
+from database import close_pool, get_pool
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import logging
-
-from config import settings
-from database import get_pool, close_pool
-from routers import health, calls, playlists, transcripts, analytics, geography, system, auth, subscriptions, keyword_groups, dashboard, ratings, locations
-from auth.firebase import initialize_firebase
-from auth.dependencies import require_auth
-
+from routers import (
+    analytics,
+    auth,
+    calls,
+    dashboard,
+    geography,
+    health,
+    keyword_groups,
+    locations,
+    playlists,
+    ratings,
+    subscriptions,
+    system,
+    transcripts,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -19,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """Startup and shutdown events."""
     # Startup
     logger.info("Starting up Police Scanner API...")

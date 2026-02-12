@@ -6,8 +6,9 @@ Tests that a missing call returns 404 HTTPException, not a dict.
 
 import os
 import sys
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -37,6 +38,7 @@ async def test_get_call_raises_404_when_not_found():
 async def test_get_call_does_not_return_error_dict():
     """get_call must NOT return {'error': ...} for missing calls."""
     import inspect
+
     from routers.calls import get_call
 
     source = inspect.getsource(get_call)
@@ -47,9 +49,9 @@ async def test_get_call_does_not_return_error_dict():
 @pytest.mark.asyncio
 async def test_get_call_returns_data_when_found():
     """get_call should return transformed call data when call exists."""
-    from routers.calls import get_call
-    from unittest.mock import MagicMock
     from datetime import datetime
+
+    from routers.calls import get_call
 
     mock_row = {
         "call_uid": "test-123",

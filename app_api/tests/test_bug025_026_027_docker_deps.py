@@ -6,9 +6,9 @@ postgres with condition: service_healthy.
 """
 
 import os
+
 import pytest
 import yaml
-
 
 COMPOSE_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "docker-compose.yml"

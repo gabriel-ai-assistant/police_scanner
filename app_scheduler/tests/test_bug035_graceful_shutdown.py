@@ -4,10 +4,9 @@ BUG-035: Scheduler missing graceful shutdown with pool cleanup.
 Tests that the scheduler's main() function calls close_pool() on shutdown.
 """
 
+import inspect
 import os
 import sys
-import inspect
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 

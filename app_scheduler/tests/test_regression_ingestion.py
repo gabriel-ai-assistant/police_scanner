@@ -22,10 +22,9 @@ Requirements:
 
 import asyncio
 import json
-import os
 import sys
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime
 
 # Add shared modules to path
 sys.path.insert(0, '/app/shared_bcfy')
@@ -68,13 +67,13 @@ async def get_baseline_metrics(conn):
 
 async def get_recent_system_logs(conn, component, since_minutes=5):
     """Get recent system logs for a component."""
-    return await conn.fetch("""
+    return await conn.fetch(f"""
         SELECT event_type, message, metadata, created_at
         FROM system_logs
-        WHERE component = $1 AND created_at > NOW() - INTERVAL '%s minutes'
+        WHERE component = $1 AND created_at > NOW() - INTERVAL '{since_minutes} minutes'
         ORDER BY created_at DESC
         LIMIT 10
-    """ % since_minutes, component)
+    """, component)
 
 
 async def run_ingestion_cycle():
@@ -180,7 +179,7 @@ async def regression_test():
     """Run full regression test."""
     print("=" * 70)
     print("Police Scanner Ingestion Pipeline Regression Test")
-    print(f"Started: {datetime.now(timezone.utc).isoformat()}")
+    print(f"Started: {datetime.now(UTC).isoformat()}")
     print("=" * 70)
 
     conn = await get_connection()

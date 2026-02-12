@@ -7,7 +7,6 @@ Tests that the DashboardMetrics model uses Optional[int].
 import os
 import sys
 import typing
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -41,7 +40,7 @@ class TestTranscriptsTodayType:
         field_type = hints.get("transcriptsToday")
 
         # Should be Optional[int] which is Union[int, None]
-        origin = typing.get_origin(field_type)
+        typing.get_origin(field_type)
         args = typing.get_args(field_type)
 
         assert str not in args, \

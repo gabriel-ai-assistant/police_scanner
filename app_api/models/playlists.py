@@ -1,15 +1,15 @@
-from pydantic import BaseModel
-from typing import Optional, List
 from datetime import datetime
+
+from pydantic import BaseModel
 
 
 class PlaylistBase(BaseModel):
     """Base playlist model."""
     name: str
-    descr: Optional[str] = None
+    descr: str | None = None
     sync: bool = False
-    listeners: Optional[int] = None
-    num_groups: Optional[int] = None
+    listeners: int | None = None
+    num_groups: int | None = None
 
 
 class PlaylistCreate(PlaylistBase):
@@ -25,15 +25,15 @@ class PlaylistUpdate(BaseModel):
 class Playlist(PlaylistBase):
     """Full playlist model."""
     uuid: str
-    ts: Optional[int] = None
-    last_pos: Optional[int] = None
-    fetched_at: Optional[datetime] = None
+    ts: int | None = None
+    last_pos: int | None = None
+    fetched_at: datetime | None = None
 
     # Transformed fields (added by API transformer for frontend compatibility)
-    id: Optional[str] = None
-    isActive: Optional[bool] = None
-    state: Optional[str] = None
-    updatedAt: Optional[str] = None
+    id: str | None = None
+    isActive: bool | None = None
+    state: str | None = None
+    updatedAt: str | None = None
 
     class Config:
         from_attributes = True

@@ -11,21 +11,20 @@ This script tests the enhanced audio processing pipeline by:
 6. A/B testing old vs new processing (if both available)
 """
 
+import json
+import logging
 import os
 import sys
-import json
-import time
 import tempfile
-import subprocess
+import time
+
 import numpy as np
-from pathlib import Path
-import logging
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(__file__))
 
 try:
-    import librosa
+    import librosa  # noqa: F401
 except ImportError:
     print("ERROR: librosa is required. Install with: pip install librosa")
     sys.exit(1)
@@ -33,11 +32,10 @@ except ImportError:
 from get_calls import (
     analyze_audio_enhanced,
     build_ffmpeg_command,
-    convert_to_wav,
-    validate_wav_output,
     build_tier1_filters,
     build_tier2_filters,
-    build_tier3_filters
+    build_tier3_filters,
+    validate_wav_output,
 )
 
 # Logging setup
@@ -316,7 +314,7 @@ def test_performance():
 
         # Time analysis
         start = time.time()
-        analysis = analyze_audio_enhanced(wav_path)
+        analyze_audio_enhanced(wav_path)
         analysis_time = time.time() - start
 
         assert_true(

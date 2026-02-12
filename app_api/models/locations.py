@@ -1,7 +1,7 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
+
+from pydantic import BaseModel, Field
 
 
 class Location(BaseModel):
@@ -10,23 +10,23 @@ class Location(BaseModel):
     source_type: str
     source_id: str
     raw_location_text: str
-    location_type: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    geocode_confidence: Optional[float] = None
-    geocode_source: Optional[str] = None
-    street_name: Optional[str] = None
-    street_number: Optional[str] = None
-    city: Optional[str] = None
-    state: Optional[str] = None
-    postal_code: Optional[str] = None
-    country: Optional[str] = None
-    formatted_address: Optional[str] = None
-    playlist_uuid: Optional[UUID] = None
-    county_id: Optional[int] = None
-    geocoded_at: Optional[datetime] = None
+    location_type: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    geocode_confidence: float | None = None
+    geocode_source: str | None = None
+    street_name: str | None = None
+    street_number: str | None = None
+    city: str | None = None
+    state: str | None = None
+    postal_code: str | None = None
+    country: str | None = None
+    formatted_address: str | None = None
+    playlist_uuid: UUID | None = None
+    county_id: int | None = None
+    geocoded_at: datetime | None = None
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -34,11 +34,11 @@ class Location(BaseModel):
 
 class LocationWithContext(Location):
     """Location with additional context for display."""
-    playlist_name: Optional[str] = None
-    county_name: Optional[str] = None
-    county_state: Optional[str] = None
-    transcript_text: Optional[str] = None
-    transcript_created_at: Optional[datetime] = None
+    playlist_name: str | None = None
+    county_name: str | None = None
+    county_state: str | None = None
+    transcript_text: str | None = None
+    transcript_created_at: datetime | None = None
 
 
 class HeatmapPoint(BaseModel):
@@ -46,12 +46,12 @@ class HeatmapPoint(BaseModel):
     lat: float
     lon: float
     count: int
-    most_recent: Optional[datetime] = None
+    most_recent: datetime | None = None
 
 
 class LocationListResponse(BaseModel):
     """Response for location list endpoint."""
-    items: List[LocationWithContext]
+    items: list[LocationWithContext]
     total: int
     limit: int
     offset: int
@@ -59,11 +59,11 @@ class LocationListResponse(BaseModel):
 
 class HeatmapResponse(BaseModel):
     """Response for heatmap endpoint."""
-    points: List[HeatmapPoint]
+    points: list[HeatmapPoint]
     total_locations: int
     time_window_hours: int
-    center_lat: Optional[float] = None
-    center_lon: Optional[float] = None
+    center_lat: float | None = None
+    center_lon: float | None = None
 
 
 class BoundingBox(BaseModel):
