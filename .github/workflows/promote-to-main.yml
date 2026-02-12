@@ -57,10 +57,9 @@ jobs:
         chmod 600 ~/.ssh/id_ed25519
         ssh-keyscan -H 10.69.69.10 >> ~/.ssh/known_hosts 2>/dev/null
 
-    - name: Run full test suite against staging
+    - name: Run full test suite against staging (via SSH)
       run: |
-        chmod +x scripts/staging-tests.sh
-        ./scripts/staging-tests.sh 10.69.69.10
+        ssh -o StrictHostKeyChecking=no gabriel@10.69.69.10 "cd /home/gabriel/police_scanner && chmod +x scripts/staging-tests.sh && ./scripts/staging-tests.sh localhost"
 
   tag-release:
     name: Tag and Release

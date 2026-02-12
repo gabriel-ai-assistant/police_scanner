@@ -37,7 +37,6 @@ jobs:
     - name: Wait for services to stabilize
       run: sleep 45
 
-    - name: Run staging test gate
+    - name: Run staging test gate (via SSH)
       run: |
-        chmod +x scripts/staging-tests.sh
-        ./scripts/staging-tests.sh 10.69.69.10
+        ssh -o StrictHostKeyChecking=no gabriel@10.69.69.10 "cd /home/gabriel/police_scanner && chmod +x scripts/staging-tests.sh && ./scripts/staging-tests.sh localhost"
