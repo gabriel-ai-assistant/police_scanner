@@ -140,8 +140,7 @@ def record_migration(version: str) -> None:
     _validate_version(version)
     psql(
         "-c",
-        "INSERT INTO schema_migrations (version) VALUES (:'mig_version');",
-        "-v", f"mig_version={version}",
+        f"INSERT INTO schema_migrations (version) VALUES ('{version}');",
     )
 
 
