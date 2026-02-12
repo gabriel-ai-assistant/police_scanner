@@ -177,7 +177,7 @@ CREATE TABLE IF NOT EXISTS transcripts (
     language         TEXT,
     model_name       TEXT,
     created_at       TIMESTAMPTZ DEFAULT now(),
-    tsv              tsvector DEFAULT to_tsvector('english', coalesce(text,'')),
+    tsv              tsvector GENERATED ALWAYS AS (to_tsvector('english', coalesce(text,''))) STORED,
     duration_seconds NUMERIC NOT NULL,
     confidence       NUMERIC NOT NULL,
     call_uid         TEXT,
