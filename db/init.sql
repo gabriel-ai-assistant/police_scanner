@@ -55,7 +55,7 @@ CREATE INDEX IF NOT EXISTS bcfy_states_coid_idx       ON bcfy_states(coid);
 CREATE INDEX IF NOT EXISTS bcfy_states_state_code_idx ON bcfy_states(state_code);
 
 CREATE TABLE IF NOT EXISTS bcfy_counties (
-    cntid          INTEGER PRIMARY KEY,
+    cntid          INTEGER NOT NULL,
     stid           INTEGER NOT NULL REFERENCES bcfy_states(stid) ON DELETE CASCADE,
     coid           INTEGER NOT NULL REFERENCES bcfy_countries(coid) ON DELETE CASCADE,
     county_name    TEXT NOT NULL,
