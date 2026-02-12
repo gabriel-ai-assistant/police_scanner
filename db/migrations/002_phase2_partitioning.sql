@@ -24,13 +24,13 @@ BEGIN;
 -- ============================================================
 -- PART 1: PREPARE PARTITION MANAGEMENT FUNCTIONS
 -- ============================================================
-RAISE NOTICE '';
-RAISE NOTICE '============================================================';
-RAISE NOTICE 'PHASE 2: Table Partitioning for Time-Series Data';
-RAISE NOTICE '============================================================';
-RAISE NOTICE '';
+DO $$BEGIN RAISE NOTICE ''; END$$;
+DO $$BEGIN RAISE NOTICE '============================================================'; END$$;
+DO $$BEGIN RAISE NOTICE 'PHASE 2: Table Partitioning for Time-Series Data'; END$$;
+DO $$BEGIN RAISE NOTICE '============================================================'; END$$;
+DO $$BEGIN RAISE NOTICE ''; END$$;
 
-RAISE NOTICE 'Step 1: Creating partition management functions...';
+DO $$BEGIN RAISE NOTICE 'Step 1: Creating partition management functions...'; END$$;
 
 -- Function to automatically create future partitions
 CREATE OR REPLACE FUNCTION create_partition_if_not_exists(
@@ -137,13 +137,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-RAISE NOTICE '✓ Partition management functions created';
+DO $$BEGIN RAISE NOTICE '✓ Partition management functions created'; END$$;
 
 -- ============================================================
 -- PART 2: PARTITION bcfy_calls_raw (BY MONTH)
 -- ============================================================
-RAISE NOTICE '';
-RAISE NOTICE 'Step 2: Creating partitioned bcfy_calls_raw table...';
+DO $$BEGIN RAISE NOTICE ''; END$$;
+DO $$BEGIN RAISE NOTICE 'Step 2: Creating partitioned bcfy_calls_raw table...'; END$$;
 
 -- Check if table is already partitioned
 DO $$
@@ -193,7 +193,7 @@ BEGIN
 END $$;
 
 -- Create partitions for past 2 months + current month + next 2 months
-RAISE NOTICE 'Creating monthly partitions for bcfy_calls_raw...';
+DO $$BEGIN RAISE NOTICE 'Creating monthly partitions for bcfy_calls_raw...'; END$$;
 
 SELECT create_partitions_for_range(
     'bcfy_calls_raw',
@@ -203,7 +203,7 @@ SELECT create_partitions_for_range(
 );
 
 -- Recreate indexes on partitioned table
-RAISE NOTICE 'Recreating indexes on bcfy_calls_raw...';
+DO $$BEGIN RAISE NOTICE 'Recreating indexes on bcfy_calls_raw...'; END$$;
 
 CREATE INDEX IF NOT EXISTS bcfy_calls_raw_feed_idx ON bcfy_calls_raw(feed_id);
 CREATE INDEX IF NOT EXISTS bcfy_calls_raw_tg_idx ON bcfy_calls_raw(tg_id);
@@ -218,13 +218,13 @@ CREATE INDEX IF NOT EXISTS bcfy_calls_raw_pending_idx ON bcfy_calls_raw(fetched_
 CREATE INDEX IF NOT EXISTS bcfy_calls_raw_feed_tg_time_idx ON bcfy_calls_raw(feed_id, tg_id, started_at DESC)
     WHERE tg_id IS NOT NULL;
 
-RAISE NOTICE '✓ All indexes created on partitioned bcfy_calls_raw';
+DO $$BEGIN RAISE NOTICE '✓ All indexes created on partitioned bcfy_calls_raw'; END$$;
 
 -- ============================================================
 -- PART 3: PARTITION transcripts (BY MONTH)
 -- ============================================================
-RAISE NOTICE '';
-RAISE NOTICE 'Step 3: Creating partitioned transcripts table...';
+DO $$BEGIN RAISE NOTICE ''; END$$;
+DO $$BEGIN RAISE NOTICE 'Step 3: Creating partitioned transcripts table...'; END$$;
 
 -- Check if table is already partitioned
 DO $$
@@ -266,7 +266,7 @@ BEGIN
 END $$;
 
 -- Create monthly partitions for transcripts
-RAISE NOTICE 'Creating monthly partitions for transcripts...';
+DO $$BEGIN RAISE NOTICE 'Creating monthly partitions for transcripts...'; END$$;
 
 SELECT create_partitions_for_range(
     'transcripts',
@@ -276,7 +276,7 @@ SELECT create_partitions_for_range(
 );
 
 -- Recreate indexes on partitioned transcripts
-RAISE NOTICE 'Recreating indexes on transcripts...';
+DO $$BEGIN RAISE NOTICE 'Recreating indexes on transcripts...'; END$$;
 
 CREATE INDEX IF NOT EXISTS transcripts_lang_model_idx ON transcripts(language, model_name);
 CREATE INDEX IF NOT EXISTS transcripts_recording_idx ON transcripts(recording_id);
@@ -292,13 +292,13 @@ ALTER TABLE transcripts
   FOREIGN KEY (call_uid) REFERENCES bcfy_calls_raw(call_uid)
   ON DELETE SET NULL;
 
-RAISE NOTICE '✓ All indexes created on partitioned transcripts';
+DO $$BEGIN RAISE NOTICE '✓ All indexes created on partitioned transcripts'; END$$;
 
 -- ============================================================
 -- PART 4: PARTITION api_call_metrics (BY WEEK)
 -- ============================================================
-RAISE NOTICE '';
-RAISE NOTICE 'Step 4: Creating partitioned api_call_metrics table...';
+DO $$BEGIN RAISE NOTICE ''; END$$;
+DO $$BEGIN RAISE NOTICE 'Step 4: Creating partitioned api_call_metrics table...'; END$$;
 
 -- Check if table is already partitioned
 DO $$
@@ -335,7 +335,7 @@ BEGIN
 END $$;
 
 -- Create weekly partitions for api_call_metrics
-RAISE NOTICE 'Creating weekly partitions for api_call_metrics...';
+DO $$BEGIN RAISE NOTICE 'Creating weekly partitions for api_call_metrics...'; END$$;
 
 SELECT create_partitions_for_range(
     'api_call_metrics',
@@ -345,19 +345,19 @@ SELECT create_partitions_for_range(
 );
 
 -- Recreate indexes
-RAISE NOTICE 'Recreating indexes on api_call_metrics...';
+DO $$BEGIN RAISE NOTICE 'Recreating indexes on api_call_metrics...'; END$$;
 
 CREATE INDEX IF NOT EXISTS api_call_metrics_timestamp_idx ON api_call_metrics(timestamp DESC);
 CREATE INDEX IF NOT EXISTS api_call_metrics_endpoint_idx ON api_call_metrics(endpoint);
 CREATE INDEX IF NOT EXISTS api_call_metrics_endpoint_time_idx ON api_call_metrics(endpoint, timestamp DESC);
 
-RAISE NOTICE '✓ All indexes created on partitioned api_call_metrics';
+DO $$BEGIN RAISE NOTICE '✓ All indexes created on partitioned api_call_metrics'; END$$;
 
 -- ============================================================
 -- PART 5: PARTITION system_logs (BY DAY)
 -- ============================================================
-RAISE NOTICE '';
-RAISE NOTICE 'Step 5: Creating partitioned system_logs table...';
+DO $$BEGIN RAISE NOTICE ''; END$$;
+DO $$BEGIN RAISE NOTICE 'Step 5: Creating partitioned system_logs table...'; END$$;
 
 -- Check if table is already partitioned
 DO $$
@@ -393,7 +393,7 @@ BEGIN
 END $$;
 
 -- Create daily partitions for system_logs
-RAISE NOTICE 'Creating daily partitions for system_logs...';
+DO $$BEGIN RAISE NOTICE 'Creating daily partitions for system_logs...'; END$$;
 
 SELECT create_partitions_for_range(
     'system_logs',
@@ -403,20 +403,20 @@ SELECT create_partitions_for_range(
 );
 
 -- Recreate indexes
-RAISE NOTICE 'Recreating indexes on system_logs...';
+DO $$BEGIN RAISE NOTICE 'Recreating indexes on system_logs...'; END$$;
 
 CREATE INDEX IF NOT EXISTS system_logs_timestamp_idx ON system_logs(timestamp DESC);
 CREATE INDEX IF NOT EXISTS system_logs_component_idx ON system_logs(component);
 CREATE INDEX IF NOT EXISTS system_logs_event_type_idx ON system_logs(event_type);
 CREATE INDEX IF NOT EXISTS system_logs_component_severity_time_idx ON system_logs(component, severity, timestamp DESC);
 
-RAISE NOTICE '✓ All indexes created on partitioned system_logs';
+DO $$BEGIN RAISE NOTICE '✓ All indexes created on partitioned system_logs'; END$$;
 
 -- ============================================================
 -- PART 6: CREATE DATA RETENTION POLICIES
 -- ============================================================
-RAISE NOTICE '';
-RAISE NOTICE 'Step 6: Creating data retention policy framework...';
+DO $$BEGIN RAISE NOTICE ''; END$$;
+DO $$BEGIN RAISE NOTICE 'Step 6: Creating data retention policy framework...'; END$$;
 
 -- Create retention policy configuration table
 CREATE TABLE IF NOT EXISTS app_retention_policies (
@@ -440,7 +440,7 @@ VALUES
     ('bcfy_playlist_poll_log', 30, 'poll_started_at', NULL, TRUE) -- Keep 30 days of poll logs
 ON CONFLICT (table_name) DO NOTHING;
 
-RAISE NOTICE '✓ Retention policies table created';
+DO $$BEGIN RAISE NOTICE '✓ Retention policies table created'; END$$;
 
 -- Create cleanup function
 CREATE OR REPLACE FUNCTION cleanup_old_data()
@@ -485,13 +485,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-RAISE NOTICE '✓ Data cleanup function created';
+DO $$BEGIN RAISE NOTICE '✓ Data cleanup function created'; END$$;
 
 -- ============================================================
 -- PART 7: CREATE PARTITION MAINTENANCE FUNCTION
 -- ============================================================
-RAISE NOTICE '';
-RAISE NOTICE 'Step 7: Creating partition maintenance function...';
+DO $$BEGIN RAISE NOTICE ''; END$$;
+DO $$BEGIN RAISE NOTICE 'Step 7: Creating partition maintenance function...'; END$$;
 
 CREATE OR REPLACE FUNCTION maintain_partitions()
 RETURNS TABLE(action TEXT, partition_name TEXT) AS $$
@@ -540,7 +540,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-RAISE NOTICE '✓ Partition maintenance function created';
+DO $$BEGIN RAISE NOTICE '✓ Partition maintenance function created'; END$$;
 
 -- ============================================================
 -- PART 8: CREATE PARTITION HEALTH VIEW
@@ -561,13 +561,13 @@ FROM pg_stat_user_tables
 WHERE tablename IN ('bcfy_calls_raw', 'transcripts', 'api_call_metrics', 'system_logs')
 ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 
-RAISE NOTICE '✓ Partition health view created';
+DO $$BEGIN RAISE NOTICE '✓ Partition health view created'; END$$;
 
 -- ============================================================
 -- PART 9: MIGRATE DATA (IF NEEDED)
 -- ============================================================
-RAISE NOTICE '';
-RAISE NOTICE 'Step 8: Migrating data to partitioned tables...';
+DO $$BEGIN RAISE NOTICE ''; END$$;
+DO $$BEGIN RAISE NOTICE 'Step 8: Migrating data to partitioned tables...'; END$$;
 
 -- Migrate bcfy_calls_raw if needed
 DO $$

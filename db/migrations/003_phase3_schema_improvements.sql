@@ -16,13 +16,13 @@ BEGIN;
 -- ============================================================
 -- PART 1: ENHANCE bcfy_playlists SCHEMA
 -- ============================================================
-RAISE NOTICE '';
-RAISE NOTICE '============================================================';
-RAISE NOTICE 'PHASE 3: Schema Improvements';
-RAISE NOTICE '============================================================';
-RAISE NOTICE '';
+DO $$BEGIN RAISE NOTICE ''; END$$;
+DO $$BEGIN RAISE NOTICE '============================================================'; END$$;
+DO $$BEGIN RAISE NOTICE 'PHASE 3: Schema Improvements'; END$$;
+DO $$BEGIN RAISE NOTICE '============================================================'; END$$;
+DO $$BEGIN RAISE NOTICE ''; END$$;
 
-RAISE NOTICE 'Step 1: Enhancing bcfy_playlists table...';
+DO $$BEGIN RAISE NOTICE 'Step 1: Enhancing bcfy_playlists table...'; END$$;
 
 -- Add metadata columns if they don't exist
 ALTER TABLE bcfy_playlists
@@ -50,12 +50,12 @@ ALTER TABLE bcfy_playlists
     ADD CONSTRAINT IF NOT EXISTS bcfy_playlists_error_count_check
     CHECK (sync_error_count >= 0);
 
-RAISE NOTICE '✓ bcfy_playlists schema enhanced';
+DO $$BEGIN RAISE NOTICE '✓ bcfy_playlists schema enhanced'; END$$;
 
 -- ============================================================
 -- PART 2: ENHANCE bcfy_calls_raw SCHEMA
 -- ============================================================
-RAISE NOTICE 'Step 2: Enhancing bcfy_calls_raw table...';
+DO $$BEGIN RAISE NOTICE 'Step 2: Enhancing bcfy_calls_raw table...'; END$$;
 
 -- Add processing_stage column for better state tracking
 ALTER TABLE bcfy_calls_raw
@@ -76,12 +76,12 @@ CREATE INDEX IF NOT EXISTS bcfy_calls_raw_processing_stage_idx
     ON bcfy_calls_raw(processing_stage)
     WHERE processing_stage IN ('pending', 'downloading');
 
-RAISE NOTICE '✓ bcfy_calls_raw schema enhanced';
+DO $$BEGIN RAISE NOTICE '✓ bcfy_calls_raw schema enhanced'; END$$;
 
 -- ============================================================
 -- PART 3: ENHANCE processing_state SCHEMA
 -- ============================================================
-RAISE NOTICE 'Step 3: Enhancing processing_state table...';
+DO $$BEGIN RAISE NOTICE 'Step 3: Enhancing processing_state table...'; END$$;
 
 -- Add tracking columns
 ALTER TABLE processing_state
@@ -107,12 +107,12 @@ CREATE INDEX IF NOT EXISTS processing_state_retry_idx
     ON processing_state(status, retry_count)
     WHERE status IN ('error') AND retry_count < max_retries;
 
-RAISE NOTICE '✓ processing_state schema enhanced';
+DO $$BEGIN RAISE NOTICE '✓ processing_state schema enhanced'; END$$;
 
 -- ============================================================
 -- PART 4: ADD HELPER FUNCTIONS FOR STATE MANAGEMENT
 -- ============================================================
-RAISE NOTICE 'Step 4: Creating state management helper functions...';
+DO $$BEGIN RAISE NOTICE 'Step 4: Creating state management helper functions...'; END$$;
 
 -- Function to safely advance processing state
 CREATE OR REPLACE FUNCTION advance_processing_state(
@@ -189,12 +189,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-RAISE NOTICE '✓ State management functions created';
+DO $$BEGIN RAISE NOTICE '✓ State management functions created'; END$$;
 
 -- ============================================================
 -- PART 5: CREATE STATISTICS AND HEALTH FUNCTION
 -- ============================================================
-RAISE NOTICE 'Step 5: Creating statistics and health check function...';
+DO $$BEGIN RAISE NOTICE 'Step 5: Creating statistics and health check function...'; END$$;
 
 CREATE OR REPLACE FUNCTION get_pipeline_stats()
 RETURNS TABLE(
@@ -279,12 +279,12 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE VIEW monitoring.pipeline_stats AS
 SELECT * FROM get_pipeline_stats();
 
-RAISE NOTICE '✓ Statistics functions and views created';
+DO $$BEGIN RAISE NOTICE '✓ Statistics functions and views created'; END$$;
 
 -- ============================================================
 -- PART 6: CREATE ADMIN FUNCTIONS
 -- ============================================================
-RAISE NOTICE 'Step 6: Creating administrative functions...';
+DO $$BEGIN RAISE NOTICE 'Step 6: Creating administrative functions...'; END$$;
 
 -- Function to reset retry counts for old errors
 CREATE OR REPLACE FUNCTION reset_old_error_retries(p_days_ago INTEGER DEFAULT 7)
@@ -326,12 +326,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-RAISE NOTICE '✓ Administrative functions created';
+DO $$BEGIN RAISE NOTICE '✓ Administrative functions created'; END$$;
 
 -- ============================================================
 -- PART 7: CREATE MONITORING VIEWS FOR NEW COLUMNS
 -- ============================================================
-RAISE NOTICE 'Step 7: Creating advanced monitoring views...';
+DO $$BEGIN RAISE NOTICE 'Step 7: Creating advanced monitoring views...'; END$$;
 
 -- View for playlist sync health
 CREATE OR REPLACE VIEW monitoring.playlist_sync_health AS
@@ -396,12 +396,12 @@ SELECT
     MAX(updated_at) AS last_update
 FROM bcfy_calls_raw;
 
-RAISE NOTICE '✓ Monitoring views created';
+DO $$BEGIN RAISE NOTICE '✓ Monitoring views created'; END$$;
 
 -- ============================================================
 -- PART 8: GRANT PERMISSIONS ON NEW FUNCTIONS/VIEWS
 -- ============================================================
-RAISE NOTICE 'Step 8: Granting permissions...';
+DO $$BEGIN RAISE NOTICE 'Step 8: Granting permissions...'; END$$;
 
 -- Grant execute on functions
 GRANT EXECUTE ON FUNCTION advance_processing_state(TEXT, TEXT, TEXT) TO PUBLIC;
@@ -416,7 +416,7 @@ GRANT SELECT ON monitoring.playlist_sync_health TO PUBLIC;
 GRANT SELECT ON monitoring.processing_pipeline_status TO PUBLIC;
 GRANT SELECT ON monitoring.call_processing_health TO PUBLIC;
 
-RAISE NOTICE '✓ Permissions granted';
+DO $$BEGIN RAISE NOTICE '✓ Permissions granted'; END$$;
 
 -- ============================================================
 -- COMMIT

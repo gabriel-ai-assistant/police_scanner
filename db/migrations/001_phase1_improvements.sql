@@ -33,7 +33,7 @@ END $$;
 -- ============================================================
 
 -- 2.1 bcfy_calls_raw indexes
-RAISE NOTICE 'Creating indexes on bcfy_calls_raw...';
+DO $$BEGIN RAISE NOTICE 'Creating indexes on bcfy_calls_raw...'; END$$;
 
 -- Index for worker queries (unprocessed calls)
 CREATE INDEX IF NOT EXISTS bcfy_calls_raw_pending_idx
@@ -50,7 +50,7 @@ CREATE INDEX IF NOT EXISTS bcfy_calls_raw_feed_tg_time_idx
   WHERE tg_id IS NOT NULL;
 
 -- 2.2 bcfy_playlists indexes
-RAISE NOTICE 'Creating indexes on bcfy_playlists...';
+DO $$BEGIN RAISE NOTICE 'Creating indexes on bcfy_playlists...'; END$$;
 
 -- Composite index for incremental polling
 CREATE INDEX IF NOT EXISTS bcfy_playlists_sync_last_pos_idx
@@ -58,7 +58,7 @@ CREATE INDEX IF NOT EXISTS bcfy_playlists_sync_last_pos_idx
   WHERE sync = TRUE;
 
 -- 2.3 transcripts indexes
-RAISE NOTICE 'Creating indexes on transcripts...';
+DO $$BEGIN RAISE NOTICE 'Creating indexes on transcripts...'; END$$;
 
 -- Fix full-text search index (change from BTREE to GIN)
 DO $$
@@ -91,7 +91,7 @@ CREATE INDEX IF NOT EXISTS transcripts_lang_created_idx
   ON transcripts(language, created_at DESC);
 
 -- 2.4 processing_state indexes
-RAISE NOTICE 'Creating indexes on processing_state...';
+DO $$BEGIN RAISE NOTICE 'Creating indexes on processing_state...'; END$$;
 
 -- Index for queue prioritization
 CREATE INDEX IF NOT EXISTS processing_state_queue_idx
@@ -99,25 +99,25 @@ CREATE INDEX IF NOT EXISTS processing_state_queue_idx
   WHERE status IN ('queued', 'error');
 
 -- 2.5 system_logs indexes
-RAISE NOTICE 'Creating indexes on system_logs...';
+DO $$BEGIN RAISE NOTICE 'Creating indexes on system_logs...'; END$$;
 
 -- Composite index for component + severity + time
 CREATE INDEX IF NOT EXISTS system_logs_component_severity_time_idx
   ON system_logs(component, severity, timestamp DESC);
 
 -- 2.6 api_call_metrics indexes
-RAISE NOTICE 'Creating indexes on api_call_metrics...';
+DO $$BEGIN RAISE NOTICE 'Creating indexes on api_call_metrics...'; END$$;
 
 -- Composite index for endpoint + time
 CREATE INDEX IF NOT EXISTS api_call_metrics_endpoint_time_idx
   ON api_call_metrics(endpoint, timestamp DESC);
 
-RAISE NOTICE 'All indexes created successfully';
+DO $$BEGIN RAISE NOTICE 'All indexes created successfully'; END$$;
 
 -- ============================================================
 -- 3. FIX bcfy_playlist_poll_log PRIMARY KEY
 -- ============================================================
-RAISE NOTICE 'Fixing bcfy_playlist_poll_log primary key...';
+DO $$BEGIN RAISE NOTICE 'Fixing bcfy_playlist_poll_log primary key...'; END$$;
 
 -- Add surrogate ID column
 ALTER TABLE bcfy_playlist_poll_log
@@ -169,12 +169,12 @@ ALTER TABLE bcfy_playlist_poll_log
   FOREIGN KEY (uuid) REFERENCES bcfy_playlists(uuid)
   ON DELETE CASCADE;
 
-RAISE NOTICE 'Primary key structure fixed successfully';
+DO $$BEGIN RAISE NOTICE 'Primary key structure fixed successfully'; END$$;
 
 -- ============================================================
 -- 4. ADD CHECK CONSTRAINTS
 -- ============================================================
-RAISE NOTICE 'Adding CHECK constraints for data validation...';
+DO $$BEGIN RAISE NOTICE 'Adding CHECK constraints for data validation...'; END$$;
 
 -- 4.1 bcfy_calls_raw constraints
 ALTER TABLE bcfy_calls_raw
@@ -202,12 +202,12 @@ ALTER TABLE transcripts
   ADD CONSTRAINT IF NOT EXISTS transcripts_duration_check
   CHECK (duration_seconds > 0);
 
-RAISE NOTICE 'CHECK constraints added successfully';
+DO $$BEGIN RAISE NOTICE 'CHECK constraints added successfully'; END$$;
 
 -- ============================================================
 -- 5. ADD NOT NULL CONSTRAINTS
 -- ============================================================
-RAISE NOTICE 'Adding NOT NULL constraints...';
+DO $$BEGIN RAISE NOTICE 'Adding NOT NULL constraints...'; END$$;
 
 -- 5.1 Backfill NULL values first
 UPDATE bcfy_calls_raw SET fetched_at = NOW() WHERE fetched_at IS NULL;
@@ -225,12 +225,12 @@ ALTER TABLE bcfy_playlists
   ALTER COLUMN last_pos SET NOT NULL,
   ALTER COLUMN last_pos SET DEFAULT 0;
 
-RAISE NOTICE 'NOT NULL constraints added successfully';
+DO $$BEGIN RAISE NOTICE 'NOT NULL constraints added successfully'; END$$;
 
 -- ============================================================
 -- 6. ADD TRIGGERS FOR AUTO-UPDATE TIMESTAMPS
 -- ============================================================
-RAISE NOTICE 'Creating triggers for timestamp management...';
+DO $$BEGIN RAISE NOTICE 'Creating triggers for timestamp management...'; END$$;
 
 -- 6.1 Create tsvector update trigger for transcripts
 CREATE OR REPLACE FUNCTION transcripts_tsv_update()
@@ -268,12 +268,12 @@ BEFORE UPDATE ON bcfy_playlists
 FOR EACH ROW
 EXECUTE FUNCTION update_playlist_sync_timestamp();
 
-RAISE NOTICE 'Triggers created successfully';
+DO $$BEGIN RAISE NOTICE 'Triggers created successfully'; END$$;
 
 -- ============================================================
 -- 7. CREATE MONITORING SCHEMA AND VIEWS
 -- ============================================================
-RAISE NOTICE 'Creating monitoring schema and views...';
+DO $$BEGIN RAISE NOTICE 'Creating monitoring schema and views...'; END$$;
 
 CREATE SCHEMA IF NOT EXISTS monitoring;
 
@@ -384,12 +384,12 @@ COMMENT ON VIEW monitoring.connections IS 'Active database connections by user a
 COMMENT ON VIEW monitoring.long_running_queries IS 'Queries running longer than 5 seconds';
 COMMENT ON VIEW monitoring.database_size IS 'Database size overview';
 
-RAISE NOTICE 'Monitoring views created successfully';
+DO $$BEGIN RAISE NOTICE 'Monitoring views created successfully'; END$$;
 
 -- ============================================================
 -- 8. CONFIGURE AUTOVACUUM FOR HIGH-WRITE TABLES
 -- ============================================================
-RAISE NOTICE 'Configuring autovacuum settings...';
+DO $$BEGIN RAISE NOTICE 'Configuring autovacuum settings...'; END$$;
 
 -- High-write table: bcfy_calls_raw (vacuum more aggressively)
 ALTER TABLE bcfy_calls_raw SET (
@@ -409,7 +409,7 @@ ALTER TABLE system_logs SET (
   autovacuum_analyze_scale_factor = 0.05
 );
 
-RAISE NOTICE 'Autovacuum configuration updated';
+DO $$BEGIN RAISE NOTICE 'Autovacuum configuration updated'; END$$;
 
 -- ============================================================
 -- 9. ENABLE QUERY STATISTICS (if not already enabled)
@@ -456,7 +456,7 @@ END $$;
 -- ============================================================
 -- 10. VERIFY FOREIGN KEY INDEXES
 -- ============================================================
-RAISE NOTICE 'Checking for foreign keys without indexes...';
+DO $$BEGIN RAISE NOTICE 'Checking for foreign keys without indexes...'; END$$;
 
 DO $$
 DECLARE
