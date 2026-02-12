@@ -271,7 +271,7 @@ CREATE SCHEMA IF NOT EXISTS monitoring;
 CREATE OR REPLACE VIEW monitoring.table_health AS
 SELECT
   schemaname,
-  tablename,
+  relname AS tablename,
   pg_size_pretty(pg_total_relation_size(relid)) AS total_size,
   pg_size_pretty(pg_relation_size(relid)) AS table_size,
   pg_size_pretty(pg_indexes_size(relid)) AS indexes_size,
@@ -289,8 +289,8 @@ ORDER BY pg_total_relation_size(relid) DESC;
 CREATE OR REPLACE VIEW monitoring.index_usage AS
 SELECT
   schemaname,
-  tablename,
-  indexname,
+  relname AS tablename,
+  indexrelname AS indexname,
   idx_scan AS scans,
   idx_tup_read AS tuples_read,
   idx_tup_fetch AS tuples_fetched,
@@ -307,7 +307,7 @@ ORDER BY idx_scan ASC, pg_relation_size(indexrelid) DESC;
 CREATE OR REPLACE VIEW monitoring.table_bloat AS
 SELECT
   schemaname,
-  tablename,
+  relname AS tablename,
   pg_size_pretty(pg_total_relation_size(relid)) AS total_size,
   n_live_tup AS live_rows,
   n_dead_tup AS dead_rows,
