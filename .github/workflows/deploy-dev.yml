@@ -9,34 +9,24 @@ on:
 jobs:
   deploy:
     name: Deploy to aidev01
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup SSH
+    - name: Deploy locally
       run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.DEV_SSH_KEY }}" > ~/.ssh/id_ed25519
-        chmod 600 ~/.ssh/id_ed25519
-        ssh-keyscan -H 10.69.69.9 >> ~/.ssh/known_hosts 2>/dev/null
-
-    - name: Deploy via SSH
-      run: |
-        ssh -o StrictHostKeyChecking=no gabriel@10.69.69.9 << 'DEPLOY'
-          cd /home/gabriel/police_scanner || exit 1
-          git fetch origin develop
-          git checkout develop
-          git reset --hard origin/develop
-          docker compose build
-          docker compose up -d
-        DEPLOY
+        cd /home/gabriel/police_scanner || exit 1
+        git fetch origin develop
+        git checkout develop
+        git reset --hard origin/develop
+        docker compose build
+        docker compose up -d
 
     - name: Wait for services
       run: sleep 30
 
-    - name: Smoke test (via SSH)
+    - name: Smoke test
       run: |
-        ssh -o StrictHostKeyChecking=no gabriel@10.69.69.9 "cd /home/gabriel/police_scanner && chmod +x scripts/smoke-test.sh && ./scripts/smoke-test.sh localhost"
+        cd /home/gabriel/police_scanner
+        chmod +x scripts/smoke-test.sh
+        ./scripts/smoke-test.sh localhost

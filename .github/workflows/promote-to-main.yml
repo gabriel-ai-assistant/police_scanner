@@ -8,7 +8,7 @@ on:
 jobs:
   validate-source:
     name: Validate PR Source
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
     - name: Check source branch
       run: |
@@ -21,7 +21,7 @@ jobs:
 
   verify-staging-tests:
     name: Verify Staging Tests Passed
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: validate-source
     steps:
     - name: Check latest staging deployment
@@ -44,7 +44,7 @@ jobs:
 
   gate-tests:
     name: Final Gate Tests
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: verify-staging-tests
     steps:
     - name: Checkout code
@@ -63,7 +63,7 @@ jobs:
 
   tag-release:
     name: Tag and Release
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: gate-tests
     if: github.event.pull_request.merged == true
     permissions:
